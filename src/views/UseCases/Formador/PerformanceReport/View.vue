@@ -72,6 +72,7 @@
 
 <script>
 import jsPDF from "jspdf";
+import 'jspdf-autotable';
 import { ref, onMounted } from "vue";
 import { supabase } from "@/supabase";
 
@@ -138,44 +139,91 @@ export default {
         const generarPDF = (evaluacion) => {
             try {
                 const doc = new jsPDF();
-
-                doc.setFontSize(18);
-                doc.text("Informe de Evaluación", 20, 20);
+                
+                // Configuración inicial
+                doc.setFont("helvetica");
+                
+                // Encabezado
+                doc.setFontSize(20);
+                doc.setTextColor(231, 76, 60); // Color rojo del header
+                doc.text("Informe de Evaluación Teórica", 105, 20, { align: "center" });
+                
+                // Información del estudiante
                 doc.setFontSize(12);
-                doc.text(`ID: ${evaluacion.id}`, 20, 40);
-                doc.text(`Operador: ${evaluacion.operador}`, 20, 50);
-                doc.text(`Documento: ${evaluacion.nro_documento}`, 20, 60);
-                doc.text(`Curso: ${evaluacion.curso}`, 20, 70);
-                doc.text(`Nota: ${evaluacion.nota}`, 20, 80);
-                doc.text(`Aprobado: ${evaluacion.aprobado ? "Sí" : "No"}`, 20, 90);
-                doc.text(`Fecha de Realización: ${evaluacion.fecha}`, 20, 100);
+                doc.setTextColor(0);
+                
+                const infoEstudiante = [
+                    ["ID:", evaluacion.id],
+                    ["Operador:", evaluacion.operador],
+                    ["Documento:", evaluacion.nro_documento],
+                    ["Curso:", evaluacion.curso],
+                    ["Nota:", evaluacion.nota],
+                    ["Estado:", evaluacion.aprobado ? "APROBADO" : "NO APROBADO"],
+                    ["Fecha:", evaluacion.fecha]
+                ];
 
-                let yOffset = 120;
+                doc.autoTable({
+                    startY: 30,
+                    head: [],
+                    body: infoEstudiante,
+                    theme: 'plain',
+                    styles: {
+                        cellPadding: 2,
+                        fontSize: 12
+                    },
+                    columnStyles: {
+                        0: { fontStyle: 'bold', cellWidth: 40 },
+                        1: { cellWidth: 'auto' }
+                    }
+                });
 
-                doc.text("Respuestas:", 20, yOffset);
-                if (evaluacion.respuestas.length > 0) {
-                    evaluacion.respuestas.forEach((respuesta, index) => {
-                        yOffset += 10;
-                        doc.text(`${index + 1}. ${respuesta}`, 30, yOffset);
-                    });
-                } else {
-                    yOffset += 10;
-                    doc.text("No hay respuestas registradas.", 30, yOffset);
+                // Tabla de respuestas
+                const respuestasData = [];
+                evaluacion.respuestas.forEach((respuesta, index) => {
+                    respuestasData.push([
+                        index + 1,
+                        respuesta,
+                        evaluacion.respuestas_correctas[index],
+                        respuesta === evaluacion.respuestas_correctas[index] ? "✓" : "✗"
+                    ]);
+                });
+
+                doc.autoTable({
+                    startY: doc.lastAutoTable.finalY + 15,
+                    head: [['#', 'Respuesta del Estudiante', 'Respuesta Correcta', 'Estado']],
+                    body: respuestasData,
+                    headStyles: {
+                        fillColor: [231, 76, 60],
+                        textColor: 255,
+                        fontStyle: 'bold'
+                    },
+                    alternateRowStyles: {
+                        fillColor: [245, 245, 245]
+                    },
+                    styles: {
+                        halign: 'center',
+                        valign: 'middle',
+                        fontSize: 10,
+                        cellPadding: 3
+                    }
+                });
+
+                // Pie de página
+                const pageCount = doc.internal.getNumberOfPages();
+                for (let i = 1; i <= pageCount; i++) {
+                    doc.setPage(i);
+                    doc.setFontSize(10);
+                    doc.setTextColor(150);
+                    doc.text(
+                        `Página ${i} de ${pageCount}`,
+                        doc.internal.pageSize.width / 2,
+                        doc.internal.pageSize.height - 10,
+                        { align: "center" }
+                    );
                 }
 
-                yOffset += 20;
-                doc.text("Respuestas Correctas:", 20, yOffset);
-                if (evaluacion.respuestas_correctas.length > 0) {
-                    evaluacion.respuestas_correctas.forEach((respuesta, index) => {
-                        yOffset += 10;
-                        doc.text(`${index + 1}. ${respuesta}`, 30, yOffset);
-                    });
-                } else {
-                    yOffset += 10;
-                    doc.text("No hay respuestas correctas registradas.", 30, yOffset);
-                }
-
-                doc.save(`Informe_${evaluacion.operador}_ID_${evaluacion.id}.pdf`);
+                // Guardar el PDF
+                doc.save(`Informe_${evaluacion.operador.replace(/\s+/g, '_')}_${evaluacion.id}.pdf`);
             } catch (error) {
                 console.error("Error al generar el PDF:", error.message);
             }
@@ -242,7 +290,6 @@ h3 {
     font-weight: bold;
 }
 
-
 .download-button {
     background-color: #ecfa24;
     color: rgb(3, 3, 3);
@@ -289,9 +336,7 @@ h3 {
     padding: 20px;
     width: 50%;
     max-height: 90vh;
-    /* Máxima altura del modal */
     overflow-y: auto;
-    /* Habilita el desplazamiento vertical */
     z-index: 1000;
     font-family: Arial, sans-serif;
 }
@@ -304,7 +349,6 @@ h3 {
 
 .logo-modal {
     width: 200px;
-    /* Ajusta el tamaño del logo */
     height: auto;
 }
 

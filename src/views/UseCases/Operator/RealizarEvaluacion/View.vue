@@ -26,27 +26,66 @@
     <!-- Resultados del Examen -->
     <div v-if="mostrarResultados" class="vista-resultados">
       <h1>Resultados del Examen</h1>
-      <table class="resultados-table">
-        <thead>
-          <tr>
-            <th>#</th>
-            <th>Pregunta</th>
-            <th>Respuesta Correcta</th>
-            <th>Tu Respuesta</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr v-for="(resultado, index) in resultados" :key="resultado.id">
-            <td>{{ index + 1 }}</td>
-            <td>{{ resultado.enunciado }}</td>
-            <td>{{ resultado.correcta }}</td>
-            <td :class="{ correcto: resultado.correcta === resultado.respuesta, incorrecto: resultado.correcta !== resultado.respuesta }">
-              {{ resultado.respuesta }}
-            </td>
-          </tr>
-        </tbody>
-      </table>
-      <h2>Puntaje Total: {{ puntajeTotal }} / {{ preguntas.length }}</h2>
+      
+      <!-- Resumen de Resultados -->
+      <div class="resultados-summary">
+        <div class="score-card" :class="getScoreClass(puntajeTotal, preguntas.length)">
+          <h2>Puntaje Final</h2>
+          <div class="score">{{ puntajeTotal }} / {{ preguntas.length }}</div>
+          <div class="percentage">
+            {{ Math.round((puntajeTotal / preguntas.length) * 100) }}%
+          </div>
+          <div class="status">
+            {{ puntajeTotal >= (preguntas.length * 0.7) ? '¡Aprobado!' : 'No Aprobado' }}
+          </div>
+        </div>
+        
+        <div class="stats-container">
+          <div class="stat-item correct">
+            <span class="stat-value">{{ puntajeTotal }}</span>
+            <span class="stat-label">Correctas</span>
+          </div>
+          <div class="stat-item incorrect">
+            <span class="stat-value">{{ preguntas.length - puntajeTotal }}</span>
+            <span class="stat-label">Incorrectas</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tabla Detallada de Respuestas -->
+      <div class="resultados-detalle">
+        <h2>Detalle de Respuestas</h2>
+        <div v-for="(resultado, index) in resultados" :key="resultado.id" class="resultado-item">
+          <div class="resultado-header">
+            <span class="pregunta-numero">Pregunta {{ index + 1 }}</span>
+            <span 
+              class="resultado-badge"
+              :class="resultado.correcta === resultado.respuesta ? 'correcto' : 'incorrecto'"
+            >
+              {{ resultado.correcta === resultado.respuesta ? '✓ Correcto' : '✗ Incorrecto' }}
+            </span>
+          </div>
+          
+          <div class="resultado-content">
+            <p class="pregunta-texto">{{ resultado.enunciado }}</p>
+            <div class="respuestas-container">
+              <div class="respuesta-item">
+                <span class="respuesta-label">Tu respuesta:</span>
+                <span 
+                  class="respuesta-valor"
+                  :class="resultado.correcta === resultado.respuesta ? 'texto-correcto' : 'texto-incorrecto'"
+                >
+                  {{ resultado.respuesta }}
+                </span>
+              </div>
+              <div class="respuesta-item" v-if="resultado.correcta !== resultado.respuesta">
+                <span class="respuesta-label">Respuesta correcta:</span>
+                <span class="respuesta-valor texto-correcto">{{ resultado.correcta }}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 </template>
@@ -100,8 +139,6 @@ export default {
           return;
         }
 
-        alert('Respuestas enviadas con éxito.');
-
         // Procesar resultados
         this.resultados = this.preguntas.map((pregunta) => ({
           id: pregunta.id,
@@ -115,11 +152,16 @@ export default {
           (resultado) => resultado.correcta === resultado.respuesta
         ).length;
 
-        this.mostrarResultados = true; // Mostrar los resultados
+        this.mostrarResultados = true;
       } catch (error) {
         console.error('Error general al enviar:', error);
         alert('Error inesperado al enviar las respuestas.');
       }
+    },
+    getScoreClass(score, total) {
+      const percentage = (score / total) * 100;
+      if (percentage >= 70) return 'score-aprobado';
+      return 'score-reprobado';
     },
   },
 };
@@ -135,6 +177,7 @@ export default {
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
 }
 
+/* Estilos existentes */
 h1 {
   text-align: center;
   color: #333;
@@ -166,85 +209,190 @@ h1 {
   color: #555;
 }
 
-input[type="radio"] {
-  margin-right: 10px;
+/* Nuevos estilos para la vista de resultados */
+.resultados-summary {
+  display: flex;
+  gap: 20px;
+  margin-bottom: 30px;
+  flex-wrap: wrap;
 }
 
-.submit-button {
-  padding: 12px 24px;
-  background-color: #007BFF;
-  color: #fff;
-  border: none;
-  border-radius: 4px;
-  font-size: 1rem;
-  cursor: pointer;
-  transition: background-color 0.3s ease;
-}
-
-.submit-button:hover {
-  background-color: #0056b3;
-}
-
-.submit-button:active {
-  background-color: #004085;
-}
-
-.vista-resultados {
-  margin-top: 40px;
-  background-color: #fff;
+.score-card {
+  flex: 1;
+  min-width: 250px;
   padding: 20px;
-  border-radius: 8px;
-  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
-}
-
-.resultados-table {
-  width: 100%;
-  border-collapse: collapse;
-  margin-bottom: 20px;
-}
-
-.resultados-table th, .resultados-table td {
-  padding: 12px;
-  border: 1px solid #ddd;
+  border-radius: 12px;
   text-align: center;
+  color: white;
 }
 
-.resultados-table th {
-  background-color: #f2f2f2;
+.score-aprobado {
+  background: linear-gradient(135deg, #4CAF50, #45a049);
 }
 
-.correcto {
-  color: green;
+.score-reprobado {
+  background: linear-gradient(135deg, #f44336, #e53935);
 }
 
-.incorrecto {
-  color: red;
+.score {
+  font-size: 3rem;
+  font-weight: bold;
+  margin: 10px 0;
 }
 
+.percentage {
+  font-size: 1.5rem;
+  margin-bottom: 10px;
+}
+
+.status {
+  font-size: 1.2rem;
+  font-weight: 500;
+}
+
+.stats-container {
+  flex: 1;
+  min-width: 250px;
+  display: flex;
+  gap: 15px;
+}
+
+.stat-item {
+  flex: 1;
+  padding: 15px;
+  border-radius: 8px;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.stat-item.correct {
+  background-color: #e8f5e9;
+  color: #2e7d32;
+}
+
+.stat-item.incorrect {
+  background-color: #ffebee;
+  color: #c62828;
+}
+
+.stat-value {
+  font-size: 2rem;
+  font-weight: bold;
+}
+
+.stat-label {
+  font-size: 1rem;
+  margin-top: 5px;
+}
+
+.resultados-detalle {
+  margin-top: 30px;
+}
+
+.resultado-item {
+  background-color: white;
+  border-radius: 8px;
+  padding: 15px;
+  margin-bottom: 15px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+.resultado-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.pregunta-numero {
+  font-weight: 600;
+  color: #666;
+}
+
+.resultado-badge {
+  padding: 5px 10px;
+  border-radius: 15px;
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+
+.resultado-badge.correcto {
+  background-color: #e8f5e9;
+  color: #2e7d32;
+}
+
+.resultado-badge.incorrecto {
+  background-color: #ffebee;
+  color: #c62828;
+}
+
+.resultado-content {
+  padding: 10px 0;
+}
+
+.pregunta-texto {
+  font-size: 1.1rem;
+  color: #333;
+  margin-bottom: 15px;
+}
+
+.respuestas-container {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.respuesta-item {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.respuesta-label {
+  font-weight: 500;
+  color: #666;
+  min-width: 120px;
+}
+
+.respuesta-valor {
+  padding: 5px 10px;
+  border-radius: 4px;
+  font-weight: 500;
+}
+
+.texto-correcto {
+  color: #2e7d32;
+}
+
+.texto-incorrecto {
+  color: #c62828;
+}
+
+/* Estilos responsivos */
 @media (max-width: 600px) {
   .form-container {
     padding: 15px;
   }
 
-  h1 {
-    font-size: 1.5rem;
+  .resultados-summary {
+    flex-direction: column;
   }
 
-  .submit-button {
-    font-size: 1rem;
-    padding: 10px 20px;
+  .stats-container {
+    flex-direction: row;
   }
 
-  .pregunta {
-    padding: 8px;
+  .resultado-header {
+    flex-direction: column;
+    gap: 10px;
+    align-items: flex-start;
   }
 
-  .pregunta h3 {
-    font-size: 1rem;
-  }
-
-  .opcion {
-    font-size: 0.9rem;
+  .respuesta-item {
+    flex-direction: column;
+    align-items: flex-start;
   }
 }
 </style>

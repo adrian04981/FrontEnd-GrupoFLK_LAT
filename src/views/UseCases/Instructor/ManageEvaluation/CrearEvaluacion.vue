@@ -58,172 +58,237 @@
         <textarea
           id="observaciones"
           v-model="observaciones"
-          placeholder="Ingrese observaciones (opcional)"
+          placeholder="Ingrese observaciones detalladas sobre el desempeño del operador"
           class="observaciones-input"
+          rows="4"
         ></textarea>
       </div>
 
-      <!-- Galería -->
+      <!-- Galería de Fotos -->
       <div class="galeria-container">
-        <label for="galeria" class="galeria-label">Galería (Fotos o Videos)</label>
+        <label for="fotos" class="galeria-label">Fotos de la Evaluación</label>
         <input
           type="file"
-          id="galeria"
-          @change="handleFileUpload"
-          accept="image/*,video/*"
+          id="fotos"
+          @change="handleFotosUpload"
+          accept="image/*"
+          multiple
           class="galeria-input"
         />
-        <div v-if="galeriaNombre" class="galeria-preview">
-          <p><strong>Archivo seleccionado:</strong> {{ galeriaNombre }}</p>
+        <div v-if="fotosPreview.length > 0" class="preview-container">
+          <div v-for="(url, index) in fotosPreview" :key="'foto-'+index" class="preview-item">
+            <img :src="url" alt="Preview" class="preview-image" />
+            <button type="button" @click="removeFoto(index)" class="remove-button">×</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Galería de Videos -->
+      <div class="galeria-container">
+        <label for="videos" class="galeria-label">Videos de la Evaluación</label>
+        <input
+          type="file"
+          id="videos"
+          @change="handleVideosUpload"
+          accept="video/*"
+          multiple
+          class="galeria-input"
+        />
+        <div v-if="videosPreview.length > 0" class="preview-container">
+          <div v-for="(url, index) in videosPreview" :key="'video-'+index" class="preview-item">
+            <video :src="url" controls class="preview-video"></video>
+            <button type="button" @click="removeVideo(index)" class="remove-button">×</button>
+          </div>
         </div>
       </div>
 
       <!-- Botones -->
       <div class="form-buttons">
-        <button type="submit" class="btn-submit">Guardar Evaluación</button>
-        <button type="button" @click="cancelar" class="btn-cancel">Cancelar</button>
+        <button type="submit" class="btn-submit" :disabled="isSubmitting">
+          {{ isSubmitting ? 'Guardando...' : 'Guardar Evaluación' }}
+        </button>
+        <button type="button" @click="cancelar" class="btn-cancel" :disabled="isSubmitting">
+          Cancelar
+        </button>
+      </div>
+
+      <!-- Mensaje de Progreso -->
+      <div v-if="uploadProgress > 0 && uploadProgress < 100" class="upload-progress">
+        <div class="progress-bar" :style="{ width: uploadProgress + '%' }"></div>
+        <span class="progress-text">Subiendo archivos: {{ uploadProgress }}%</span>
       </div>
     </form>
   </div>
 </template>
 
-<script>
+<script setup>
 import { ref, onMounted } from "vue";
 import { supabase } from "@/supabase.js";
 
-export default {
-  setup() {
-    const enunciados = ref([
-      "¿El operador conoce las reglas de seguridad?",
-      "¿El operador usa equipo de protección personal?",
-      "¿El operador sigue los procedimientos correctamente?",
-    ]);
-    const respuestas = ref(Array(enunciados.value.length).fill(null));
-    const observaciones = ref("");
-    const fk_curso = ref(null);
-    const fk_operador = ref(null);
-    const cursos = ref([]);
-    const operadores = ref([]);
-    const galeriaNombre = ref(null);
-    const galeriaArchivo = ref(null);
+const enunciados = ref([
+  "¿El operador conoce las reglas de seguridad?",
+  "¿El operador usa equipo de protección personal?",
+  "¿El operador sigue los procedimientos correctamente?",
+]);
 
-    // Obtener todos los cursos disponibles
-    const fetchCursos = async () => {
-      const { data, error } = await supabase.from("cursos").select("pk_curso, titulo_curso");
-      if (!error) {
-        cursos.value = data;
-      } else {
-        console.error("Error al obtener cursos:", error.message);
-      }
-    };
+const respuestas = ref(Array(enunciados.value.length).fill(null));
+const observaciones = ref("");
+const fk_curso = ref(null);
+const fk_operador = ref(null);
+const cursos = ref([]);
+const operadores = ref([]);
+const fotos = ref([]);
+const fotosPreview = ref([]);
+const videos = ref([]);
+const videosPreview = ref([]);
+const isSubmitting = ref(false);
+const uploadProgress = ref(0);
 
-    // Obtener todos los operadores disponibles
-    const fetchOperadores = async () => {
-      const { data, error } = await supabase.from("operadores").select("Pk_Alumno, nombre");
-      if (!error) {
-        operadores.value = data;
-      } else {
-        console.error("Error al obtener operadores:", error.message);
-      }
-    };
+const createPreview = (file) => {
+  return new Promise((resolve) => {
+    const reader = new FileReader();
+    reader.onload = (e) => resolve(e.target.result);
+    reader.readAsDataURL(file);
+  });
+};
 
-    // Manejar la subida de archivos
-    const handleFileUpload = (event) => {
-      const file = event.target.files[0];
-      if (file) {
-        galeriaNombre.value = file.name;
-        galeriaArchivo.value = file;
-      }
-    };
-    // Subir archivo a Supabase Storage
-    const subirArchivo = async () => {
-      if (!galeriaArchivo.value) return null;
+const handleFotosUpload = async (event) => {
+  const newFiles = Array.from(event.target.files);
+  fotos.value = [...fotos.value, ...newFiles];
+  
+  for (const file of newFiles) {
+    const preview = await createPreview(file);
+    fotosPreview.value.push(preview);
+  }
+};
 
-      const { data, error } = await supabase.storage
-        .from("Evaluacion_Practica")
-        .upload(`galeria/${galeriaArchivo.value.name}`, galeriaArchivo.value);
+const handleVideosUpload = async (event) => {
+  const newFiles = Array.from(event.target.files);
+  videos.value = [...videos.value, ...newFiles];
+  
+  for (const file of newFiles) {
+    const preview = await createPreview(file);
+    videosPreview.value.push(preview);
+  }
+};
 
-      if (error) {
-        console.error("Error al subir archivo:", error.message);
-        return null;
-      }
-      return data.path; // Ruta del archivo subido
-    };
+const removeFoto = (index) => {
+  fotos.value = fotos.value.filter((_, i) => i !== index);
+  fotosPreview.value = fotosPreview.value.filter((_, i) => i !== index);
+};
 
-    // Enviar evaluación
-    const submitEvaluacion = async () => {
-      if (!fk_curso.value || !fk_operador.value) {
-        alert("Por favor, seleccione un curso y un operador.");
-        return;
-      }
+const removeVideo = (index) => {
+  videos.value = videos.value.filter((_, i) => i !== index);
+  videosPreview.value = videosPreview.value.filter((_, i) => i !== index);
+};
 
-      const galeriaPath = await subirArchivo();
+const fetchCursos = async () => {
+  const { data, error } = await supabase.from("cursos").select("pk_curso, titulo_curso");
+  if (!error) {
+    cursos.value = data;
+  } else {
+    console.error("Error al obtener cursos:", error.message);
+  }
+};
 
-      try {
-        const { error } = await supabase.from("evaluacion_practica").insert({
-          fk_curso: fk_curso.value,
-          fk_operador: fk_operador.value,
-          enunciados: enunciados.value,
-          respuestas: respuestas.value.join(","), // Almacenar respuestas como texto separado por comas
-          observaciones: observaciones.value,
-          galeria: galeriaPath,
-          fecha_creacion: new Date(),
-        });
+const fetchOperadores = async () => {
+  const { data, error } = await supabase.from("operadores").select("Pk_Alumno, nombre");
+  if (!error) {
+    operadores.value = data;
+  } else {
+    console.error("Error al obtener operadores:", error.message);
+  }
+};
 
-        if (error) {
-          throw error;
-        }
+const uploadFile = async (file, bucket, folder) => {
+  const fileExt = file.name.split('.').pop();
+  const fileName = `${Math.random().toString(36).substring(2)}.${fileExt}`;
+  const filePath = `${folder}/${fileName}`;
 
-        alert("Evaluación registrada con éxito");
-        limpiarFormulario();
-      } catch (error) {
-        console.error("Error al registrar evaluación:", error.message);
-        alert("Hubo un error al registrar la evaluación.");
-      }
-    };
-
-    // Limpiar formulario
-    const limpiarFormulario = () => {
-      respuestas.value = Array(enunciados.value.length).fill(null);
-      observaciones.value = "";
-      fk_curso.value = null;
-      fk_operador.value = null;
-      galeriaNombre.value = null;
-      galeriaArchivo.value = null;
-    };
-
-    // Cancelar y limpiar
-    const cancelar = () => {
-      limpiarFormulario();
-      alert("Evaluación cancelada.");
-    };
-
-    // Cargar datos al montar el componente
-    onMounted(() => {
-      fetchCursos();
-      fetchOperadores();
+  const { data, error } = await supabase.storage
+    .from(bucket)
+    .upload(filePath, file, {
+      cacheControl: '3600',
+      upsert: false
     });
 
-    return {
-      enunciados,
-      respuestas,
-      observaciones,
-      fk_curso,
-      fk_operador,
-      cursos,
-      operadores,
-      galeriaNombre,
-      submitEvaluacion,
-      handleFileUpload,
-      cancelar,
-    };
-  },
+  if (error) throw error;
+  return data.path;
 };
+
+const submitEvaluacion = async () => {
+  try {
+    isSubmitting.value = true;
+    
+    const totalFiles = fotos.value.length + videos.value.length;
+    let filesProcessed = 0;
+    const fotosPaths = [];
+    const videosPaths = [];
+
+    // Subir fotos
+    for (const foto of fotos.value) {
+      const path = await uploadFile(foto, 'evaluaciones', 'fotos');
+      fotosPaths.push(path);
+      filesProcessed++;
+      uploadProgress.value = (filesProcessed / totalFiles) * 100;
+    }
+
+    // Subir videos
+    for (const video of videos.value) {
+      const path = await uploadFile(video, 'evaluaciones', 'videos');
+      videosPaths.push(path);
+      filesProcessed++;
+      uploadProgress.value = (filesProcessed / totalFiles) * 100;
+    }
+
+    // Guardar evaluación
+    const { error } = await supabase.from("evaluacion_practica").insert({
+      fk_curso: fk_curso.value,
+      fk_operador: fk_operador.value,
+      enunciados: enunciados.value,
+      respuestas: respuestas.value,
+      observaciones: observaciones.value,
+      fotos: fotosPaths,
+      videos: videosPaths,
+      fecha_creacion: new Date(),
+    });
+
+    if (error) throw error;
+
+    alert("Evaluación registrada con éxito");
+    limpiarFormulario();
+  } catch (error) {
+    console.error("Error al registrar evaluación:", error.message);
+    alert("Hubo un error al registrar la evaluación.");
+  } finally {
+    isSubmitting.value = false;
+    uploadProgress.value = 0;
+  }
+};
+
+const limpiarFormulario = () => {
+  respuestas.value = Array(enunciados.value.length).fill(null);
+  observaciones.value = "";
+  fk_curso.value = null;
+  fk_operador.value = null;
+  fotos.value = [];
+  fotosPreview.value = [];
+  videos.value = [];
+  videosPreview.value = [];
+};
+
+const cancelar = () => {
+  limpiarFormulario();
+  alert("Evaluación cancelada.");
+};
+
+onMounted(() => {
+  fetchCursos();
+  fetchOperadores();
+});
 </script>
 
-
 <style scoped>
-/* Contenedor principal */
 .container {
   max-width: 900px;
   margin: 0 auto;
@@ -233,7 +298,6 @@ export default {
   box-shadow: 0 8px 8px rgba(0, 0, 0, 0.1);
 }
 
-/* Título de la página */
 .page-title {
   font-size: 2rem;
   color: #333;
@@ -242,138 +306,172 @@ export default {
   font-weight: bold;
 }
 
-/* Estilo del formulario */
 .evaluacion-form {
   display: flex;
   flex-direction: column;
   gap: 1.5rem;
 }
 
-/* Enunciados */
-.enunciado-container {
-  display: flex;
-  flex-direction: column;
+.curso-container,
+.operador-container,
+.enunciado-container,
+.observaciones-container,
+.galeria-container {
+  background-color: white;
+  padding: 1rem;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
 }
 
-.enunciado-label {
+.curso-label,
+.operador-label,
+.enunciado-label,
+.observaciones-label,
+.galeria-label {
+  display: block;
   font-size: 1.1rem;
   font-weight: bold;
   color: #333;
   margin-bottom: 0.5rem;
+}
+
+.curso-select,
+.operador-select,
+.observaciones-input,
+.galeria-input {
+  width: 100%;
+  padding: 0.5rem;
+  border: 1px solid #ddd;
+  border-radius: 5px;
+  font-size: 1rem;
+}
+
+.observaciones-input {
+  resize: vertical;
+  min-height: 100px;
 }
 
 .respuesta-options {
   display: flex;
+  gap: 2rem;
+  margin-top: 0.5rem;
+}
+
+.preview-container {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
   gap: 1rem;
+  margin-top: 1rem;
 }
 
-.respuesta-options label {
-  font-size: 1rem;
-  color: #333;
+.preview-item {
+  position: relative;
+  border-radius: 8px;
+  overflow: hidden;
+  aspect-ratio: 1;
 }
 
-/* Observaciones */
-.observaciones-container {
-  display: flex;
-  flex-direction: column;
-}
-
-.observaciones-label {
-  font-size: 1.1rem;
-  font-weight: bold;
-  color: #333;
-  margin-bottom: 0.5rem;
-}
-
-.observaciones-input {
+.preview-image,
+.preview-video {
   width: 100%;
-  height: 100px;
-  padding: 0.5rem;
-  font-size: 1rem;
-  border: 1px solid #ddd;
-  border-radius: 5px;
-  resize: none;
+  height: 100%;
+  object-fit: cover;
 }
 
-/* Curso */
-.curso-container {
+.remove-button {
+  position: absolute;
+  top: 5px;
+  right: 5px;
+  background: rgba(255, 255, 255, 0.9);
+  border: none;
+  border-radius: 50%;
+  width: 24px;
+  height: 24px;
+  cursor: pointer;
   display: flex;
-  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  color: #e74c3c;
 }
 
-.curso-label {
-  font-size: 1.1rem;
-  font-weight: bold;
-  color: #333;
-  margin-bottom: 0.5rem;
-}
-
-.curso-select {
-  width: 100%;
-  padding: 0.5rem;
-  font-size: 1rem;
-  border: 1px solid #ddd;
-  border-radius: 5px;
-}
-
-/* Curso */
-.operador-container {
-  display: flex;
-  flex-direction: column;
-}
-
-.operador-label {
-  font-size: 1.1rem;
-  font-weight: bold;
-  color: #333;
-  margin-bottom: 0.5rem;
-}
-
-.operador-select {
-  width: 100%;
-  padding: 0.5rem;
-  font-size: 1rem;
-  border: 1px solid #ddd;
-  border-radius: 5px;
-}
-
-/* Botones */
 .form-buttons {
   display: flex;
-  justify-content: space-between;
+  justify-content: flex-end;
+  gap: 1rem;
+  margin-top: 2rem;
+}
+
+.btn-submit,
+.btn-cancel {
+  padding: 0.75rem 1.5rem;
+  border: none;
+  border-radius: 5px;
+  font-weight: bold;
+  cursor: pointer;
+  transition: all 0.3s ease;
 }
 
 .btn-submit {
   background-color: #4caf50;
   color: white;
-  padding: 0.7rem 1.5rem;
-  border: none;
-  border-radius: 5px;
-  cursor: pointer;
-  font-size: 1rem;
-  font-weight: bold;
-  transition: background-color 0.3s ease, transform 0.2s ease;
 }
 
-.btn-submit:hover {
-  background-color: #388e3c;
-  transform: scale(1.05);
+.btn-submit:hover:not(:disabled) {
+  background-color: #45a049;
 }
 
 .btn-cancel {
   background-color: #f44336;
   color: white;
-  padding: 0.7rem 1.5rem;
-  border: none;
-  border-radius: 5px;
-  cursor: pointer;
-  font-size: 1rem;
-  font-weight: bold;
-  transition: background-color 0.3s ease, transform 0.2s ease;
 }
 
-.btn-cancel:hover {
+.btn-cancel:hover:not(:disabled) {
   background-color: #d32f2f;
-  transform: scale(1.05);
+}
+
+.upload-progress {
+  margin-top: 1rem;
+  background-color: #f0f0f0;
+  border-radius: 4px;
+  overflow: hidden;
+  position: relative;
+  height: 24px;
+}
+
+.progress-bar {
+  height: 100%;
+  background-color: #4caf50;
+  transition: width 0.3s ease;
+}
+
+.progress-text {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  color: #333;
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+button:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+@media (max-width: 768px) {
+  .container {
+    padding: 1rem;
+  }
+
+  .form-buttons {
+    flex-direction: column;
+  }
+
+  .btn-submit,
+  .btn-cancel {
+    width: 100%;
+  }
 }
 </style>
