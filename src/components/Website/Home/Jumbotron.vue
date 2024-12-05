@@ -1,15 +1,43 @@
 <template>
   <div class="jumbotron text-center">
-    <div class="overlay"></div>
-    <h1 class="display-4">Servicios de calidad</h1>
-    <p class="lead">Ofrecemos servicios de inspección, capacitación y certificación.</p>
-    <hr class="my-4" style="border-color: #BF5630;">
-    <router-link to="/services" class="btn btn-yellow btn-lg">Nuestros Servicios</router-link>
-    <a href="https://wa.me/51966401791?text=Hola%2C%20Quisiera%20solicitar%20Informes" target="_blank" class="btn btn-whatsapp">
-      <i class="fab fa-whatsapp"></i> Contáctanos por WhatsApp
-    </a>
-    <router-link to="/RequestTraining" class="btn btn-red btn-lg">Solicitar capacitación</router-link>
-    <router-link to="/ListarInspeccionesPorRUC" class="btn btn-green btn-lg">Consultar Inspecciones</router-link>
+    <div class="overlay animate-fade-in"></div>
+    <div class="content-wrapper">
+      <h1 class="display-4 animate-slide-down">Servicios de calidad</h1>
+      <p class="lead animate-slide-up">Ofrecemos servicios de inspección, capacitación y certificación.</p>
+      <hr class="my-4 animate-scale">
+      
+      <div class="buttons-container">
+        <router-link to="/services" class="btn btn-yellow btn-lg animate-fade-in">
+          <span class="btn-content">
+            <span class="btn-text">Nuestros Servicios</span>
+            <span class="btn-icon">→</span>
+          </span>
+        </router-link>
+
+        <a href="https://wa.me/51966401791?text=Hola%2C%20Quisiera%20solicitar%20Informes" 
+           target="_blank" 
+           class="btn btn-whatsapp animate-fade-in">
+          <span class="btn-content">
+            <i class="fab fa-whatsapp"></i>
+            <span class="btn-text">Contáctanos por WhatsApp</span>
+          </span>
+        </a>
+
+        <router-link to="/RequestTraining" class="btn btn-red btn-lg animate-fade-in">
+          <span class="btn-content">
+            <span class="btn-text">Solicitar capacitación</span>
+            <span class="btn-icon">→</span>
+          </span>
+        </router-link>
+
+        <router-link to="/ListarInspeccionesPorRUC" class="btn btn-green btn-lg animate-fade-in">
+          <span class="btn-content">
+            <span class="btn-text">Consultar Inspecciones</span>
+            <span class="btn-icon">→</span>
+          </span>
+        </router-link>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -22,12 +50,13 @@ export default {
 <style scoped>
 .jumbotron {
   position: relative;
-  background-image: url('/src/assets/Portada.png'); /* Reemplaza con la ruta correcta de tu imagen */
+  background-image: url('/src/assets/Portada.png');
   background-size: cover;
   background-position: center;
   color: white;
-  padding: 4rem 2rem;
-  margin-bottom: 0; /* Elimina cualquier margen adicional que no sea necesario */
+  padding: 6rem 2rem;
+  margin-bottom: 0;
+  overflow: hidden;
 }
 
 .overlay {
@@ -36,106 +65,198 @@ export default {
   left: 0;
   width: 100%;
   height: 100%;
-  background-color: rgba(0, 0, 0, 0.5); /* Fondo oscuro semitransparente */
+  background: linear-gradient(
+    135deg,
+    rgba(0, 0, 0, 0.7) 0%,
+    rgba(0, 0, 0, 0.5) 100%
+  );
   z-index: 1;
 }
 
-.jumbotron h1, 
-.jumbotron p, 
-.jumbotron .btn {
+.content-wrapper {
   position: relative;
   z-index: 2;
-  margin-bottom: 1rem;
+  max-width: 1200px;
+  margin: 0 auto;
 }
 
-/* Botón amarillo para "Nuestros Servicios" */
-.btn-yellow {
-  background-color: #FFC107;
-  color: white;
-  margin-top: 1rem;
+.display-4 {
+  font-size: 3.5rem;
+  font-weight: 700;
+  margin-bottom: 1.5rem;
+  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+.lead {
+  font-size: 1.5rem;
+  margin-bottom: 2rem;
+  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.3);
+}
+
+.buttons-container {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  justify-content: center;
+  margin-top: 2rem;
+}
+
+.btn {
+  position: relative;
   padding: 0.75rem 1.5rem;
   border-radius: 50px;
-  display: inline-block;
-  transition: background-color 0.3s ease;
+  font-weight: 600;
+  text-decoration: none;
+  overflow: hidden;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.btn-content {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.btn-icon {
+  opacity: 0;
+  transform: translateX(-10px);
+  transition: all 0.3s ease;
+}
+
+.btn:hover .btn-icon {
+  opacity: 1;
+  transform: translateX(0);
+}
+
+/* Button Styles */
+.btn-yellow {
+  background: linear-gradient(135deg, #FFC107, #FF9800);
+  color: white;
+  box-shadow: 0 4px 15px rgba(255, 193, 7, 0.3);
 }
 
 .btn-yellow:hover {
-  background-color: #e6ac00;
-  color: white;
+  background: linear-gradient(135deg, #FF9800, #FFC107);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(255, 193, 7, 0.4);
 }
 
-/* Botón rojo para "Solicitar capacitación" */
 .btn-red {
-  background-color: #ff2c07;
+  background: linear-gradient(135deg, #ff2c07, #ff5252);
   color: white;
-  margin-top: 1rem;
-  padding: 0.75rem 1.5rem;
-  border-radius: 50px;
-  display: inline-block;
-  transition: background-color 0.3s ease;
+  box-shadow: 0 4px 15px rgba(255, 44, 7, 0.3);
 }
 
 .btn-red:hover {
-  background-color: #e02007;
+  background: linear-gradient(135deg, #ff5252, #ff2c07);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(255, 44, 7, 0.4);
 }
 
-/* Botón verde para "Consultar Inspecciones" */
 .btn-green {
-  background-color: #28a745;
+  background: linear-gradient(135deg, #28a745, #20c997);
   color: white;
-  margin-top: 1rem;
-  padding: 0.75rem 1.5rem;
-  border-radius: 50px;
-  display: inline-block;
-  transition: background-color 0.3s ease;
+  box-shadow: 0 4px 15px rgba(40, 167, 69, 0.3);
 }
 
 .btn-green:hover {
-  background-color: #218838;
+  background: linear-gradient(135deg, #20c997, #28a745);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(40, 167, 69, 0.4);
 }
 
-/* Botón verde para WhatsApp */
 .btn-whatsapp {
-  background-color: #25d366;
+  background: linear-gradient(135deg, #25d366, #128C7E);
   color: white;
-  margin-top: 1rem;
-  padding: 0.75rem 1.5rem;
-  border-radius: 50px;
-  display: inline-flex;
-  align-items: center;
-  font-size: 1.25rem;
-  transition: background-color 0.3s ease;
+  box-shadow: 0 4px 15px rgba(37, 211, 102, 0.3);
 }
 
 .btn-whatsapp:hover {
-  background-color: #1ebe57;
+  background: linear-gradient(135deg, #128C7E, #25d366);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(37, 211, 102, 0.4);
 }
 
-.btn-whatsapp i {
-  margin-right: 0.5rem;
-  font-size: 1.5rem;
+/* Animations */
+.animate-fade-in {
+  animation: fadeIn 0.8s ease-out forwards;
 }
 
-/* Ajustes para pantallas más pequeñas */
+.animate-slide-down {
+  animation: slideDown 0.8s ease-out forwards;
+}
+
+.animate-slide-up {
+  animation: slideUp 0.8s ease-out forwards;
+}
+
+.animate-scale {
+  animation: scale 0.8s ease-out forwards;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes scale {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+
+/* Responsive Design */
 @media (max-width: 768px) {
   .jumbotron {
-    padding: 2rem 1rem;
+    padding: 4rem 1rem;
   }
 
-  .jumbotron h1 {
-    font-size: 2rem;
+  .display-4 {
+    font-size: 2.5rem;
   }
 
-  .btn-yellow, 
-  .btn-red, 
-  .btn-green,
-  .btn-whatsapp {
-    padding: 0.5rem 1rem;
-    font-size: 1rem;
-  }
-
-  .btn-whatsapp i {
+  .lead {
     font-size: 1.25rem;
+  }
+
+  .buttons-container {
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+
+  .btn {
+    width: 100%;
+    text-align: center;
+    justify-content: center;
   }
 }
 </style>

@@ -1,179 +1,372 @@
 <template>
-<section class="vh-100" @submit.prevent="handleLogin" >
-  <div class="container-fluid">
-    <div class="row">
-      <div class="col-sm-6 text-black">
-
-        <div class="px-5 ms-xl-4">
-          <i class="fas fa-crow fa-2x me-3 pt-5 mt-xl-4" style="color: #709085;"></i>
-          <span class="h1 fw-bold mb-0">GRUPO FLK</span>
+  <div class="login-page">
+    <div class="login-container">
+      <!-- Left Panel -->
+      <div class="login-left-panel">
+        <div class="brand-section">
+          <img src="@/assets/SELLO_FLK.png" alt="GRUPO FLK" class="brand-logo" />
+          <h1 class="brand-name">GRUPO FLK</h1>
         </div>
 
-        <div class="d-flex align-items-center h-custom-2 px-5 ms-xl-4 mt-5 pt-5 pt-xl-0 mt-xl-n5">
+        <div class="login-form-container">
+          <form @submit.prevent="handleLogin" class="login-form">
+            <h2 class="form-title">Iniciar Sesión</h2>
 
-          <form style="width: 23rem;">
-
-            <h3 class="fw-normal mb-3 pb-3" style="letter-spacing: 1px;">Iniciar Sesion</h3>
-
-            <div data-mdb-input-init class="form-outline mb-4">
-              <input v-model="email" type="email" id="form2Example18" required class="form-control form-control-lg" />
-              <label class="form-label" for="form2Example18">Correo</label>
+            <!-- Email Field -->
+            <div class="form-group">
+              <label for="email" class="form-label">Correo Electrónico</label>
+              <div class="input-group">
+                <i class="fas fa-envelope input-icon"></i>
+                <input
+                  v-model="email"
+                  type="email"
+                  id="email"
+                  class="form-input"
+                  required
+                  placeholder="ejemplo@correo.com"
+                />
+              </div>
             </div>
 
-            <div data-mdb-input-init class="form-outline mb-4">
-              <input v-model="password" type="password" id="form2Example28" required class="form-control form-control-lg" />
-              <label class="form-label" for="form2Example28">Contraseña</label>
+            <!-- Password Field -->
+            <div class="form-group">
+              <label for="password" class="form-label">Contraseña</label>
+              <div class="input-group">
+                <i class="fas fa-lock input-icon"></i>
+                <input
+                  v-model="password"
+                  :type="showPassword ? 'text' : 'password'"
+                  id="password"
+                  class="form-input"
+                  required
+                  placeholder="••••••••"
+                />
+                <button 
+                  type="button" 
+                  class="password-toggle"
+                  @click="togglePassword"
+                >
+                  <i :class="showPassword ? 'fas fa-eye-slash' : 'fas fa-eye'"></i>
+                </button>
+              </div>
             </div>
 
-            <div class="pt-1 mb-4">
-              <button data-mdb-button-init data-mdb-ripple-init class="btn btn-info btn-lg btn-block" type="submit" :disabled="isLoading" >ingresar</button>
+            <!-- Error Message -->
+            <div v-if="error" class="error-message">
+              {{ error }}
             </div>
 
-            <p class="small mb-5 pb-lg-2"><a class="text-muted" href="/ResetPassword">Forgot password?</a></p>
-            <p>Don't have an account? <a href="/register" class="link-info">Register here</a></p>
+            <!-- Submit Button -->
+            <button 
+              type="submit" 
+              class="submit-button" 
+              :disabled="isLoading"
+            >
+              <span v-if="!isLoading">Ingresar</span>
+              <span v-else class="loading-spinner"></span>
+            </button>
 
+            <!-- Additional Links -->
+            <div class="form-links">
+              <router-link to="/reset-password" class="forgot-password">
+                ¿Olvidaste tu contraseña?
+              </router-link>
+              <router-link to="/register" class="register-link">
+                ¿No tienes cuenta? Regístrate aquí
+              </router-link>
+            </div>
           </form>
-
         </div>
-
       </div>
-      <div class="col-sm-6 px-0 d-none d-sm-block">
-        <img src="../../assets/Portada.png"
-          alt="Login image" class="w-100 vh-100" style="object-fit: cover; object-position: left;">
+
+      <!-- Right Panel -->
+      <div class="login-right-panel">
+        <img 
+          src="@/assets/Portada.png"
+          alt="Login Background" 
+          class="background-image"
+        />
       </div>
     </div>
   </div>
-</section>
 </template>
 
 <script>
-import { login } from '@/auth'; // Importar la función login desde auth.js
+import { ref } from 'vue';
+import { useRouter } from 'vue-router'; // Importamos useRouter
+import { login } from '@/auth';
 
 export default {
-  data() {
-    return {
-      email: '',
-      password: '',
-      isLoading: false,
-      error: null,
+  name: 'LoginView',
+  setup() {
+    const router = useRouter(); // Obtenemos la instancia del router
+    const email = ref('');
+    const password = ref('');
+    const isLoading = ref(false);
+    const error = ref(null);
+    const showPassword = ref(false);
+
+    const togglePassword = () => {
+      showPassword.value = !showPassword.value;
     };
-  },
-  methods: {
-    async handleLogin() {
-      this.isLoading = true;
-      this.error = null;
+
+    const handleLogin = async () => {
+      error.value = null;
+      isLoading.value = true;
 
       try {
-        // Llamar a la función de login
-        const { user, rolId, jwt } = await login(this.email, this.password);
+        const { user, rolId, jwt } = await login(email.value, password.value);
+        localStorage.setItem('user', JSON.stringify(user));
+        localStorage.setItem('jwt', jwt);
 
-        // Guardar el usuario y el JWT en localStorage
-        localStorage.setItem('user', JSON.stringify(user)); // Esto ya se hace en la función login
-        localStorage.setItem('jwt', jwt); // El JWT también ya se guarda en la función
+        const routes = {
+          1: '/home',
+          2: '/operations-assistant-dashboard',
+          3: '/admin-dashboard',
+          4: '/receptionist-dashboard',
+          5: '/operator-dashboard',
+          6: '/instructor-dashboard',
+          7: '/formador-dashboard'
+        };
 
-        // Redirigir al dashboard correspondiente según el rol del usuario
-        switch (rolId) {
-          case 1: // Nuevo
-            this.$router.push('/home');
-            break;
-          case 2: // Asistente de Operaciones
-            this.$router.push('/operations-assistant-dashboard');
-            break;
-          case 3: // Administrador
-            this.$router.push('/admin-dashboard');
-            break;
-          case 4: // Recepcionista
-            this.$router.push('/receptionist-dashboard');
-            break;
-          case 5: // Operador
-            this.$router.push('/operator-dashboard');
-            break;
-          case 6: // Instructor
-            this.$router.push('/instructor-dashboard');
-            break;
-          case 7: // Formador
-            this.$router.push('/formador-dashboard');
-            break;
-          default:
-            this.error = 'No se ha asignado un rol válido a este usuario.';
+        const route = routes[rolId];
+        if (route) {
+          router.push(route); // Usamos router en lugar de this.$router
+        } else {
+          error.value = 'No se ha asignado un rol válido a este usuario.';
         }
-
-      } catch (error) {
-        this.error = error.message;
-        console.error('Error de login:', error);
+      } catch (err) {
+        error.value = 'Credenciales inválidas. Por favor, intente nuevamente.';
+        console.error('Error de login:', err);
       } finally {
-        this.isLoading = false;
+        isLoading.value = false;
       }
-    }
+    };
+
+    return {
+      email,
+      password,
+      isLoading,
+      error,
+      showPassword,
+      togglePassword,
+      handleLogin
+    };
   }
 };
 </script>
+
 <style scoped>
-.login-container {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  height: 100vh;
+.login-page {
+  min-height: 100vh;
   background-color: #f5f5f5;
 }
 
-.login-form {
-  background-color: #fff;
-  padding: 2rem;
-  border-radius: 8px;
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-  width: 100%;
-  max-width: 400px;
+.login-container {
+  display: flex;
+  min-height: 100vh;
 }
 
-h1 {
+.login-left-panel {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  padding: 2rem;
+  background-color: white;
+}
+
+.brand-section {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 3rem;
+}
+
+.brand-logo {
+  width: 60px;
+  height: auto;
+}
+
+.brand-name {
+  font-size: 1.8rem;
+  font-weight: 700;
+  color: #2c3e50;
+}
+
+.login-form-container {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.login-form {
+  width: 100%;
+  max-width: 400px;
+  padding: 2rem;
+}
+
+.form-title {
+  font-size: 2rem;
+  font-weight: 600;
+  color: #2c3e50;
+  margin-bottom: 2rem;
   text-align: center;
-  color: #333;
-  margin-bottom: 1.5rem;
 }
 
 .form-group {
   margin-bottom: 1.5rem;
 }
 
-label {
+.form-label {
   display: block;
   margin-bottom: 0.5rem;
-  font-size: 0.9rem;
-  color: #666;
+  color: #4a5568;
+  font-weight: 500;
 }
 
-input {
+.input-group {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.input-icon {
+  position: absolute;
+  left: 1rem;
+  color: #a0aec0;
+}
+
+.form-input {
   width: 100%;
-  padding: 0.75rem;
-  border: 1px solid #ccc;
-  border-radius: 4px;
+  padding: 0.75rem 1rem 0.75rem 2.5rem;
+  border: 2px solid #e2e8f0;
+  border-radius: 8px;
   font-size: 1rem;
+  transition: all 0.3s ease;
 }
 
-input:focus {
+.form-input:focus {
+  border-color: #4299e1;
+  box-shadow: 0 0 0 3px rgba(66, 153, 225, 0.2);
   outline: none;
-  border-color: #007bff;
 }
 
-button {
-  width: 100%;
-  padding: 0.75rem;
-  background-color: #007bff;
-  color: #fff;
+.password-toggle {
+  position: absolute;
+  right: 1rem;
+  background: none;
   border: none;
-  border-radius: 4px;
-  font-size: 1rem;
+  color: #a0aec0;
   cursor: pointer;
+  padding: 0.25rem;
 }
 
-button:disabled {
-  background-color: #ccc;
+.submit-button {
+  width: 100%;
+  padding: 0.875rem;
+  background-color: #4299e1;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.submit-button:hover {
+  background-color: #3182ce;
+  transform: translateY(-1px);
+}
+
+.submit-button:disabled {
+  background-color: #cbd5e0;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.loading-spinner {
+  display: inline-block;
+  width: 1.5rem;
+  height: 1.5rem;
+  border: 3px solid #ffffff;
+  border-radius: 50%;
+  border-top-color: transparent;
+  animation: spin 1s linear infinite;
+}
+
+.form-links {
+  margin-top: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  text-align: center;
+}
+
+.forgot-password,
+.register-link {
+  color: #4299e1;
+  text-decoration: none;
+  font-size: 0.875rem;
+  transition: color 0.3s ease;
+}
+
+.forgot-password:hover,
+.register-link:hover {
+  color: #3182ce;
+  text-decoration: underline;
 }
 
 .error-message {
-  color: red;
+  background-color: #fed7d7;
+  color: #c53030;
+  padding: 0.75rem;
+  border-radius: 6px;
+  margin-bottom: 1rem;
+  font-size: 0.875rem;
   text-align: center;
-  margin-top: 1rem;
+}
+
+.login-right-panel {
+  flex: 1;
+  display: none;
+}
+
+.background-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (min-width: 768px) {
+  .login-right-panel {
+    display: block;
+  }
+}
+
+@media (max-width: 768px) {
+  .login-left-panel {
+    padding: 1.5rem;
+  }
+
+  .brand-section {
+    margin-bottom: 2rem;
+  }
+
+  .brand-name {
+    font-size: 1.5rem;
+  }
+
+  .form-title {
+    font-size: 1.75rem;
+  }
 }
 </style>

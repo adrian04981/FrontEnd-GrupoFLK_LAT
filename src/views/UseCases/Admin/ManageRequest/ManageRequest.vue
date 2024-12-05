@@ -517,6 +517,7 @@ export default {
   },
 };
 </script>
+
 <style scoped>
 /* Contenedor principal */
 .container {
