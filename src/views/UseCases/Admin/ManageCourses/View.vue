@@ -1,9 +1,7 @@
 <template>
   <div class="container">
     <h1 class="page-title">Gestión de Cursos</h1>
-    <button @click="goToCreateCourse" class="btn-create">
-  Crear Curso
-</button>
+    <button @click="goToCreateCourse" class="btn-create">Crear Curso</button>
     <div class="controls-container">
       <div class="pagination-controls">
         <label for="registrosPorPagina">Mostrar</label>
@@ -74,176 +72,146 @@
   </div>
 </template>
 
-<script>
+<script setup lang="ts">
 import { ref, computed, onMounted } from "vue";
-import { supabase } from "@/supabase.js";
+import { supabase } from "@/supabase";
 import { useRouter } from "vue-router";
 
-export default {
-  setup() {
-    const router = useRouter();
-    const cursos = ref([]);
-    const formadores = ref([]);
-    const instructores = ref([]);
-    const ubicaciones = ref([]);
-    const searchQuery = ref("");
-    const registrosPorPagina = ref(5);
-    const paginaActual = ref(1);
+const router = useRouter();
+const cursos = ref([]);
+const formadores = ref([]);
+const instructores = ref([]);
+const ubicaciones = ref([]);
+const searchQuery = ref("");
+const registrosPorPagina = ref(5);
+const paginaActual = ref(1);
 
-    const fetchCourses = async () => {
-      let { data: Cursos, error } = await supabase.from("cursos").select("*");
-      if (!error) cursos.value = Cursos;
-      else console.error("Error al obtener los cursos:", error.message);
-    };
-
-    const fetchFormadores = async () => {
-      let { data: Formador, error } = await supabase.from("Formador").select("*");
-      if (!error) formadores.value = Formador;
-      else console.error("Error al obtener formadores:", error.message);
-    };
-
-    const fetchInstructores = async () => {
-      let { data: Instructor, error } = await supabase.from("Instructor").select("*");
-      if (!error) instructores.value = Instructor;
-      else console.error("Error al obtener instructores:", error.message);
-    };
-
-    const fetchUbicaciones = async () => {
-      let { data: Ubicaciones, error } = await supabase.from("Ubicaciones").select("*");
-      if (!error) ubicaciones.value = Ubicaciones;
-      else console.error("Error al obtener ubicaciones:", error.message);
-    };
-
-    const cursosFiltrados = computed(() => {
-      return cursos.value.filter((curso) => {
-        // Filtro exacto por el título
-        return !searchQuery.value || curso.titulo_curso === searchQuery.value;
-      });
-    });
-
-    const numeroPaginas = computed(() => {
-      return Math.ceil(cursosFiltrados.value.length / registrosPorPagina.value);
-    });
-
-    const getNombreFormador = (fk_docenteteoria) => {
-      const formador = formadores.value.find((f) => f.Pk_docenteteoria === fk_docenteteoria);
-      return formador ? formador.nombre : "Sin asignar";
-    };
-
-    const getNombreInstructor = (fk_docentepractico) => {
-      const instructor = instructores.value.find((i) => i.Pk_docentepractico === fk_docentepractico);
-      return instructor ? instructor.nombre : "Sin asignar";
-    };
-
-    const getUbicacionTeoria = (fk_ubicacion_teoria) => {
-      const ubicacion = ubicaciones.value.find((u) => u.Pk_Ubicacion === fk_ubicacion_teoria);
-      return ubicacion ? ubicacion.nombre_ubicacion : "Sin asignar";
-    };
-
-    const getUbicacionPractica = (fk_ubicacion_practica) => {
-      const ubicacion = ubicaciones.value.find((u) => u.Pk_Ubicacion === fk_ubicacion_practica);
-      return ubicacion ? ubicacion.nombre_ubicacion : "Sin asignar";
-    };
-
-    const viewCourse = (id) => {
-      router.push({ path: "ManageCourses/Details", query: { id } });
-    };
-
-    const goToCreateCourse = () => {
-      router.push({ path:"CreateCourses"});
-    };
-
-    const goToEditCourse = (id) => {
-      router.push({ path: "ManageCourses/Edit", query: { id } });
-    };
-
-    const deleteCourse = async (id) => {
-      const { error } = await supabase.from("cursos").delete().eq("pk_curso", id);
-      if (!error) {
-        cursos.value = cursos.value.filter((curso) => curso.pk_curso !== id);
-        alert("Curso eliminado con éxito");
-      } else {
-        alert("Error al eliminar el curso");
-      }
-    };
-
-    const irPrimeraPagina = () => {
-      paginaActual.value = 1;
-    };
-
-    const irUltimaPagina = () => {
-      paginaActual.value = numeroPaginas.value;
-    };
-
-    const irPaginaAnterior = () => {
-      if (paginaActual.value > 1) paginaActual.value--;
-    };
-
-    const irPaginaSiguiente = () => {
-      if (paginaActual.value < numeroPaginas.value) paginaActual.value++;
-    };
-
-    const validarPagina = () => {
-      if (paginaActual.value < 1) paginaActual.value = 1;
-      if (paginaActual.value > numeroPaginas.value) paginaActual.value = numeroPaginas.value;
-    };
-
-    onMounted(() => {
-      fetchCourses();
-      fetchFormadores();
-      fetchInstructores();
-      fetchUbicaciones();
-    });
-
-    return {
-      cursos,
-      cursosFiltrados,
-      searchQuery,
-      registrosPorPagina,
-      paginaActual,
-      numeroPaginas,
-      getNombreFormador,
-      getNombreInstructor,
-      getUbicacionTeoria,
-      getUbicacionPractica,
-      viewCourse,
-      goToCreateCourse,
-      goToEditCourse,
-      deleteCourse,
-      irPrimeraPagina,
-      irUltimaPagina,
-      irPaginaAnterior,
-      irPaginaSiguiente,
-      validarPagina,
-    };
-  },
+const fetchCourses = async () => {
+  const { data, error } = await supabase.from("cursos").select("*");
+  if (!error) cursos.value = data;
+  else console.error("Error al obtener los cursos:", error.message);
 };
+
+const fetchFormadores = async () => {
+  const { data, error } = await supabase.from("Formador").select("*");
+  if (!error) formadores.value = data;
+  else console.error("Error al obtener formadores:", error.message);
+};
+
+const fetchInstructores = async () => {
+  const { data, error } = await supabase.from("Instructor").select("*");
+  if (!error) instructores.value = data;
+  else console.error("Error al obtener instructores:", error.message);
+};
+
+const fetchUbicaciones = async () => {
+  const { data, error } = await supabase.from("Ubicaciones").select("*");
+  if (!error) ubicaciones.value = data;
+  else console.error("Error al obtener ubicaciones:", error.message);
+};
+
+const cursosFiltrados = computed(() => {
+  return cursos.value.filter((curso) => {
+    return !searchQuery.value || curso.titulo_curso === searchQuery.value;
+  });
+});
+
+const numeroPaginas = computed(() => {
+  return Math.ceil(cursosFiltrados.value.length / registrosPorPagina.value);
+});
+
+const getNombreFormador = (fk_docenteteoria) => {
+  const formador = formadores.value.find((f) => f.Pk_docenteteoria === fk_docenteteoria);
+  return formador ? formador.nombre : "Sin asignar";
+};
+
+const getNombreInstructor = (fk_docentepractico) => {
+  const instructor = instructores.value.find((i) => i.Pk_docentepractico === fk_docentepractico);
+  return instructor ? instructor.nombre : "Sin asignar";
+};
+
+const getUbicacionTeoria = (fk_ubicacion_teoria) => {
+  const ubicacion = ubicaciones.value.find((u) => u.Pk_Ubicacion === fk_ubicacion_teoria);
+  return ubicacion ? ubicacion.nombre_ubicacion : "Sin asignar";
+};
+
+const getUbicacionPractica = (fk_ubicacion_practica) => {
+  const ubicacion = ubicaciones.value.find((u) => u.Pk_Ubicacion === fk_ubicacion_practica);
+  return ubicacion ? ubicacion.nombre_ubicacion : "Sin asignar";
+};
+
+const viewCourse = (id) => {
+  router.push({ path: "ManageCourses/Details", query: { id } });
+};
+
+const goToCreateCourse = () => {
+  router.push({ path: "CreateCourses" });
+};
+
+const goToEditCourse = (id) => {
+  router.push({ path: "ManageCourses/Edit", query: { id } });
+};
+
+const deleteCourse = async (id) => {
+  const { error } = await supabase.from("cursos").delete().eq("pk_curso", id);
+  if (!error) {
+    cursos.value = cursos.value.filter((curso) => curso.pk_curso !== id);
+    alert("Curso eliminado con éxito");
+  } else {
+    alert("Error al eliminar el curso");
+  }
+};
+
+const irPrimeraPagina = () => {
+  paginaActual.value = 1;
+};
+
+const irUltimaPagina = () => {
+  paginaActual.value = numeroPaginas.value;
+};
+
+const irPaginaAnterior = () => {
+  if (paginaActual.value > 1) paginaActual.value--;
+};
+
+const irPaginaSiguiente = () => {
+  if (paginaActual.value < numeroPaginas.value) paginaActual.value++;
+};
+
+const validarPagina = () => {
+  if (paginaActual.value < 1) paginaActual.value = 1;
+  if (paginaActual.value > numeroPaginas.value) paginaActual.value = numeroPaginas.value;
+};
+
+onMounted(() => {
+  fetchCourses();
+  fetchFormadores();
+  fetchInstructores();
+  fetchUbicaciones();
+});
 </script>
 
 <style scoped>
-/* Contenedor principal */
 .container {
   max-width: 1200px;
   margin: 0 auto;
   padding: 2rem;
-  background-color: #fcfcfc; /* Fondo transparente */
-  border-radius: 10px; /* Bordes suaves */
-  box-shadow: none; /* Eliminar sombras */
+  background-color: #fcfcfc;
+  border-radius: 10px;
+  box-shadow: none;
 }
 
-/* Título */
 .page-title {
   font-size: 2rem;
-  color: #4a5c93; /* Color armonizado con el fondo */
+  color: #4a5c93;
   text-align: center;
   margin-bottom: 1rem;
   font-weight: bold;
 }
 
-/* Botón Crear Curso */
 .btn-create {
-  background-color: #4a5c93; /* Azul oscuro */
-  color: white;
+  background-color: #003366; /* Azul oscuro */
+  color: #FFD700; /* Amarillo */
   padding: 0.5rem 1.2rem;
   border: none;
   border-radius: 5px;
@@ -253,21 +221,20 @@ export default {
 }
 
 .btn-create:hover {
-  background-color: #3b4a71; /* Azul más oscuro */
+  background-color: #002244; /* Azul aún más oscuro */
   transform: scale(1.05);
 }
 
-/* Tabla de cursos */
 .courses-table {
   width: 100%;
   border-collapse: collapse;
-  background-color: transparent; /* Fondo transparente */
+  background-color: transparent;
   color: #0a0a0a;
 }
 
 .courses-table th {
-  background-color: rgba(112, 149, 210, 0.6); /* Fondo semitransparente */
-  color: white;
+  background-color: rgba(0, 51, 102, 0.6); /* Azul oscuro */
+  color: #FFD700; /* Amarillo */
   padding: 0.75rem;
   font-size: 1rem;
 }
@@ -275,16 +242,15 @@ export default {
 .courses-table td {
   padding: 0.75rem;
   text-align: left;
-  border-bottom: 1px solid rgba(112, 149, 210, 0.4); /* Bordes suaves */
-  background-color: transparent; /* Sin fondo */
+  border-bottom: 1px solid rgba(0, 51, 102, 0.4); /* Azul oscuro */
+  background-color: transparent;
 }
 
-/* Botones de acciones */
 .view-btn,
 .edit-btn,
 .delete-btn {
-  background-color: #4a5c93; /* Azul oscuro */
-  color: white;
+  background-color: #003366; /* Azul oscuro */
+  color: #FFD700; /* Amarillo */
   border: none;
   padding: 0.5rem 1rem;
   border-radius: 5px;
@@ -296,11 +262,10 @@ export default {
 .view-btn:hover,
 .edit-btn:hover,
 .delete-btn:hover {
-  background-color: #3b4a71; /* Azul más oscuro */
+  background-color: #002244; /* Azul aún más oscuro */
   transform: scale(1.05);
 }
 
-/* Controles de búsqueda y paginación */
 .controls-container {
   display: flex;
   justify-content: space-between;
@@ -312,15 +277,15 @@ export default {
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  color: #4a5c93;
+  color: #003366; /* Azul oscuro */
 }
 
 .pagination-select {
   padding: 0.5rem;
   border-radius: 5px;
-  border: 1px solid rgba(112, 149, 210, 0.4);
-  background-color: rgba(255, 255, 255, 0.8); /* Fondo semitransparente */
-  color: #4a5c93;
+  border: 1px solid rgba(0, 51, 102, 0.4); /* Azul oscuro */
+  background-color: rgba(255, 255, 255, 0.8);
+  color: #003366; /* Azul oscuro */
 }
 
 .search-container {
@@ -331,14 +296,13 @@ export default {
 .search-input {
   padding: 0.5rem;
   border-radius: 5px;
-  border: 1px solid rgba(112, 149, 210, 0.4);
+  border: 1px solid rgba(0, 51, 102, 0.4); /* Azul oscuro */
   font-size: 1rem;
   width: 300px;
-  background-color: rgba(255, 255, 255, 0.8); /* Fondo semitransparente */
-  color: #4a5c93;
+  background-color: rgba(255, 255, 255, 0.8);
+  color: #003366; /* Azul oscuro */
 }
 
-/* Paginación */
 .pagination {
   display: flex;
   align-items: center;
@@ -349,8 +313,8 @@ export default {
 
 .pagination button {
   padding: 0.5rem 1rem;
-  background-color: #4a5c93; /* Azul oscuro */
-  color: white;
+  background-color: #003366; /* Azul oscuro */
+  color: #FFD700; /* Amarillo */
   border: none;
   border-radius: 5px;
   cursor: pointer;
@@ -358,23 +322,21 @@ export default {
 }
 
 .pagination button:disabled {
-  background-color: #bdc3c7; /* Gris claro */
+  background-color: #bdc3c7;
   cursor: not-allowed;
 }
 
 .pagination button:hover:enabled {
-  background-color: #3b4a71; /* Azul más oscuro */
+  background-color: #002244; /* Azul aún más oscuro */
 }
 
-/* Estilo del input de página */
 .pagina-input {
   width: 50px;
   padding: 0.5rem;
   text-align: center;
-  border: 1px solid rgba(112, 149, 210, 0.4);
+  border: 1px solid rgba(0, 51, 102, 0.4); /* Azul oscuro */
   border-radius: 5px;
-  background-color: rgba(255, 255, 255, 0.8); /* Fondo semitransparente */
-  color: #4a5c93;
+  background-color: rgba(255, 255, 255, 0.8);
+  color: #003366; /* Azul oscuro */
 }
 </style>
-

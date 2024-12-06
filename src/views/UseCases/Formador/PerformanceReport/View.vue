@@ -1,9 +1,13 @@
 <template>
     <div class="report-container">
         <h1>Informe de Evaluaciones</h1>
+        
+        <!-- Mensaje cuando no hay evaluaciones -->
         <div v-if="evaluaciones.length === 0">
             <p>No se encontraron evaluaciones registradas.</p>
         </div>
+        
+        <!-- Tabla que muestra las evaluaciones -->
         <div v-else>
             <table class="tabla-evaluaciones">
                 <thead>
@@ -19,6 +23,7 @@
                     </tr>
                 </thead>
                 <tbody>
+                    <!-- Mostrar cada evaluación en la tabla -->
                     <tr v-for="evaluacion in evaluaciones" :key="evaluacion.id">
                         <td>{{ evaluacion.id }}</td>
                         <td>{{ evaluacion.operador }}</td>
@@ -87,16 +92,7 @@ export default {
             try {
                 const { data, error: supabaseError } = await supabase
                     .from("evaluaciones_teoricas")
-                    .select(`
-                        id,
-                        fk_curso(titulo_curso),
-                        fk_alumno(nombre, apellidos, nro_documento),
-                        respuestas,
-                        respuestas_correctas,
-                        nota,
-                        aprobado,
-                        fecha_realizacion
-                    `);
+                    .select(`id, fk_curso(titulo_curso), fk_alumno(nombre, apellidos, nro_documento), respuestas, respuestas_correctas, nota, aprobado, fecha_realizacion`);
 
                 if (supabaseError) throw new Error(supabaseError.message);
 
@@ -107,19 +103,9 @@ export default {
                     curso: evaluacion.fk_curso.titulo_curso || "Curso no especificado",
                     nota: evaluacion.nota || 0,
                     aprobado: evaluacion.aprobado || false,
-                    respuestas: evaluacion.respuestas
-                        ? (typeof evaluacion.respuestas === "string"
-                            ? JSON.parse(evaluacion.respuestas)
-                            : evaluacion.respuestas)
-                        : [],
-                    respuestas_correctas: evaluacion.respuestas_correctas
-                        ? (typeof evaluacion.respuestas_correctas === "string"
-                            ? JSON.parse(evaluacion.respuestas_correctas)
-                            : evaluacion.respuestas_correctas)
-                        : [],
-                    fecha: evaluacion.fecha_realizacion
-                        ? new Date(evaluacion.fecha_realizacion).toLocaleString()
-                        : "Fecha no disponible",
+                    respuestas: evaluacion.respuestas ? (typeof evaluacion.respuestas === "string" ? JSON.parse(evaluacion.respuestas) : evaluacion.respuestas) : [],
+                    respuestas_correctas: evaluacion.respuestas_correctas ? (typeof evaluacion.respuestas_correctas === "string" ? JSON.parse(evaluacion.respuestas_correctas) : evaluacion.respuestas_correctas) : [],
+                    fecha: evaluacion.fecha_realizacion ? new Date(evaluacion.fecha_realizacion).toLocaleString() : "Fecha no disponible",
                 }));
             } catch (err) {
                 console.error("Error al cargar evaluaciones:", err.message);
@@ -180,12 +166,7 @@ export default {
                 // Tabla de respuestas
                 const respuestasData = [];
                 evaluacion.respuestas.forEach((respuesta, index) => {
-                    respuestasData.push([
-                        index + 1,
-                        respuesta,
-                        evaluacion.respuestas_correctas[index],
-                        respuesta === evaluacion.respuestas_correctas[index] ? "✓" : "✗"
-                    ]);
+                    respuestasData.push([index + 1, respuesta, evaluacion.respuestas_correctas[index], respuesta === evaluacion.respuestas_correctas[index] ? "✓" : "✗"]);
                 });
 
                 doc.autoTable({
@@ -213,19 +194,12 @@ export default {
                 for (let i = 1; i <= pageCount; i++) {
                     doc.setPage(i);
                     doc.setFontSize(10);
-                    doc.setTextColor(150);
-                    doc.text(
-                        `Página ${i} de ${pageCount}`,
-                        doc.internal.pageSize.width / 2,
-                        doc.internal.pageSize.height - 10,
-                        { align: "center" }
-                    );
+                    doc.text(`Página ${i} de ${pageCount}`, 195, 285, { align: 'right' });
                 }
 
-                // Guardar el PDF
-                doc.save(`Informe_${evaluacion.operador.replace(/\s+/g, '_')}_${evaluacion.id}.pdf`);
+                doc.save("informe_evaluacion.pdf");
             } catch (error) {
-                console.error("Error al generar el PDF:", error.message);
+                console.error("Error al generar el PDF:", error);
             }
         };
 
@@ -239,126 +213,88 @@ export default {
             evaluacionSeleccionada,
             abrirModal,
             cerrarModal,
-            generarPDF,
+            generarPDF
         };
-    },
+    }
 };
 </script>
 
 <style scoped>
 .report-container {
-    max-width: 1200px;
-    margin: 0 auto;
     padding: 20px;
-}
-
-h1 {
-    text-align: center;
-    margin-bottom: 20px;
-}
-
-h2 {
-    text-align: center;
-    margin-bottom: 05px;
-    color: #333;
-}
-
-h3 {
-    text-align: center;
-    margin-bottom: 05px;
-    color: #333;
+    font-family: Arial, sans-serif;
 }
 
 .tabla-evaluaciones {
-    background-color: #ffffff;
     width: 100%;
     border-collapse: collapse;
     margin-top: 20px;
-    box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.1);
 }
 
-.tabla-evaluaciones th,
-.tabla-evaluaciones td {
-    border: 1px solid #ddd;
+.tabla-evaluaciones th, .tabla-evaluaciones td {
     padding: 10px;
     text-align: center;
+    border: 1px solid #ddd;
 }
 
 .tabla-evaluaciones th {
-    background-color: #e74c3c;
-    color: white;
-    font-weight: bold;
+    background-color: #f2f2f2;
 }
 
-.download-button {
-    background-color: #ecfa24;
-    color: rgb(3, 3, 3);
+.view-button, .download-button {
+    padding: 6px 12px;
+    font-size: 12px;
     border: none;
-    padding: 5px 10px;
-    border-radius: 9px;
     cursor: pointer;
+    transition: all 0.3s ease;
 }
 
 .view-button {
-    background-color: #1e748a;
+    background-color: #3498db;
     color: white;
-    border: none;
-    padding: 4px 10px;
-    border-radius: 9px;
-    cursor: pointer;
 }
 
-.view-button:hover {
-    background-color: #4fb4c2;
+.download-button {
+    background-color: #27ae60;
+    color: white;
+}
+
+.view-button:hover, .download-button:hover {
+    transform: scale(1.1);
 }
 
 .modal-overlay {
     position: fixed;
     top: 0;
     left: 0;
-    width: 100%;
-    height: 100%;
-    background-color: rgba(0, 0, 0, 0.5);
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.5);
     display: flex;
     justify-content: center;
     align-items: center;
-    z-index: 1000;
 }
 
 .modal-content {
-    position: fixed;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
     background: white;
-    border-radius: 10px;
-    box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.2);
     padding: 20px;
-    width: 50%;
-    max-height: 90vh;
-    overflow-y: auto;
-    z-index: 1000;
-    font-family: Arial, sans-serif;
-}
-
-.modal-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
+    border-radius: 8px;
+    width: 500px;
+    text-align: center;
 }
 
 .logo-modal {
-    width: 200px;
-    height: auto;
+    width: 100px;
+    margin-bottom: 20px;
 }
 
 .close-button {
-    background-color: #189dc5;
+    background-color: #e74c3c;
     color: white;
+    padding: 8px 16px;
     border: none;
-    padding: 5px 9px;
-    border-radius: 5px;
     cursor: pointer;
-    margin-top: 10px;
+    border-radius: 4px;
+    margin-top: 20px;
 }
 </style>

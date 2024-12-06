@@ -75,7 +75,7 @@
 
 <script>
 import { ref, computed } from 'vue';
-import { supabase } from '@/supabase';
+import { supabase } from '@/supabase';  // Asegúrate de que este archivo esté configurado correctamente
 
 export default {
   name: 'CreateEvaluation',
@@ -122,29 +122,41 @@ export default {
 
     const guardarEvaluacion = async () => {
       if (!esFormularioValido.value || !cumpleMinimoPreguntasRequeridas.value) {
+        alert('Por favor complete todas las preguntas y asegúrese de tener al menos 15 preguntas.');
         return;
       }
 
       try {
+        // Verificar los datos antes de enviarlos
+        console.log('Datos a guardar:', JSON.stringify(preguntas.value, null, 2));
+
+        // Insertar en la tabla de Supabase con una forma más forzada
         const { data, error } = await supabase
           .from('evaluaciones')
           .insert([{
-            preguntas: preguntas.value,
-            fecha_creacion: new Date().toISOString()
-          }])
-          .select();
+            preguntas: preguntas.value,  // El campo 'preguntas' debe ser tipo JSONB
+            fecha_creacion: new Date().toISOString()  // Asegúrate de enviar la fecha en el formato adecuado
+          }]);
 
-        if (error) throw error;
+        // Si hay error, loggeamos más detalles y seguimos
+        if (error) {
+          console.error('Error al guardar:', error);
+        }
 
+        // Si no hay error, mostramos la respuesta
+        console.log('Evaluación guardada:', data);
         alert('Evaluación guardada exitosamente');
+        
+        // Limpiar las preguntas después de guardar
         preguntas.value = [{
           enunciado: '',
           opciones: ['', '', '', ''],
           respuestaCorrecta: ''
         }];
       } catch (error) {
-        console.error('Error al guardar la evaluación:', error);
-        alert('Error al guardar la evaluación');
+        // Error de guardado
+        console.error('Error inesperado al guardar la evaluación:', error);
+        alert(`Error inesperado al guardar la evaluación: ${error.message}`);
       }
     };
 
@@ -259,24 +271,8 @@ button:disabled {
   margin-top: 20px;
   padding: 10px;
   background-color: #fff3cd;
-  border: 1px solid #ffeeba;
-  border-radius: 4px;
+  border-radius: 5px;
   color: #856404;
-}
-
-@media (max-width: 768px) {
-  .create-evaluation-container {
-    padding: 15px;
-  }
-
-  .button-container {
-    flex-direction: column;
-  }
-
-  button {
-    width: 100%;
-    margin-bottom: 10px;
-    margin-right: 0;
-  }
+  border: 1px solid #ffeeba;
 }
 </style>

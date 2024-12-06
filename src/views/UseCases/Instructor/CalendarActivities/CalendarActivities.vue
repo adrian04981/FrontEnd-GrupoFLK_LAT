@@ -54,11 +54,11 @@ import timeGridPlugin from "@fullcalendar/timegrid";
 import interactionPlugin from "@fullcalendar/interaction";
 
 export default {
-  name: "SessionsList",
+  name: "CalendarActivities",
   setup() {
     const sesiones = ref([]);
     const slider = ref(null);
-    const calendarEvents = ref([]);
+    const calendar = ref(null);
     const showModal = ref(false);
     const selectedSession = ref({});
     const userEmail = ref("");
@@ -100,20 +100,29 @@ export default {
           docente_practica: sesion.curso.docente_practica?.nombre || "N/A",
         }));
 
-        calendarEvents.value = sesiones.value.map((sesion) => ({
-          title: sesion.titulo_curso,
-          start: `${sesion.fecha_session}T${sesion.hora_inicio}`,
-          end: `${sesion.fecha_session}T${sesion.hora_fin}`,
-          extendedProps: { ...sesion },
-        }));
+        updateCalendarEvents();
       } catch (error) {
         console.error("Error al obtener sesiones programadas:", error.message);
       }
     };
 
+    const updateCalendarEvents = () => {
+      if (calendar.value) {
+        calendar.value.removeAllEvents();
+        sesiones.value.forEach((sesion) => {
+          calendar.value.addEvent({
+            title: sesion.titulo_curso,
+            start: `${sesion.fecha_session}T${sesion.hora_inicio}`,
+            end: `${sesion.fecha_session}T${sesion.hora_fin}`,
+            extendedProps: sesion,
+          });
+        });
+      }
+    };
+
     const initializeCalendar = () => {
       const calendarEl = document.getElementById("calendar");
-      const calendar = new Calendar(calendarEl, {
+      calendar.value = new Calendar(calendarEl, {
         plugins: [dayGridPlugin, timeGridPlugin, interactionPlugin],
         initialView: "dayGridMonth",
         headerToolbar: {
@@ -121,14 +130,13 @@ export default {
           center: "title",
           right: "dayGridMonth,timeGridWeek,timeGridDay",
         },
-        events: calendarEvents.value,
+        events: [],
         eventClick: (info) => {
           selectedSession.value = info.event.extendedProps;
           showModal.value = true;
         },
       });
-
-      calendar.render();
+      calendar.value.render();
     };
 
     const nextCard = () => {
@@ -149,8 +157,8 @@ export default {
       }
     };
 
-    const goToProgramarSesion = async () => {
-      window.location.href = "\ProgrammerSession";
+    const goToProgramarSesion = () => {
+      window.location.href = "/Instructor-dashboard/ProgrammerSession";
     };
 
     onMounted(async () => {
@@ -166,11 +174,11 @@ export default {
       goToProgramarSesion,
       showModal,
       selectedSession,
-      userEmail,
     };
   },
 };
 </script>
+
 
 <style scoped>
 .sessions-container {
