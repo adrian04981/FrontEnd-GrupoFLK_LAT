@@ -69,6 +69,7 @@ import { supabase } from '@/supabase';  // Asegúrate de que este archivo esté 
 export default {
   name: 'CreateEvaluation',
   setup() {
+    const cursoSeleccionado = ref(''); // Declaración de cursoSeleccionado
     const preguntas = ref([{
       enunciado: '',
       opciones: ['', '', '', ''],
@@ -177,22 +178,29 @@ export default {
       }
 
       try {
-        console.log('Datos a guardar:', JSON.stringify(preguntas.value, null, 2));
-
-        // Insertar en la tabla de Supabase
-        const { data, error } = await supabase
-          .from('evaluaciones')
-          .insert([{
+        // Aquí se hace el procesamiento de las preguntas una por una
+        for (const pregunta of preguntas.value) {
+          const preguntaFormateada = {
             fk_curso: cursoSeleccionado.value,
-            preguntas: preguntas.value,
-            fecha_creacion: new Date().toISOString()
-          }]);
+            enunciado: pregunta.enunciado,
+            opciones: pregunta.opciones,
+            respuesta_correcta: parseInt(pregunta.respuestaCorrecta),  // Convertir a índice si es necesario
+            fecha_creacion: new Date().toISOString(),
+          };
 
-        if (error) {
-          console.error('Error al guardar:', error);
+          const { data, error } = await supabase
+            .from('preguntas_teoricas')
+            .insert([preguntaFormateada]);
+
+          if (error) {
+            console.error('Error al guardar la pregunta:', error.message);
+            alert(`Error al guardar la pregunta: ${error.message}`);
+            return;
+          }
+
+          console.log('Pregunta guardada:', data);
         }
 
-        console.log('Evaluación guardada:', data);
         alert('Evaluación guardada exitosamente');
 
         // Limpiar las preguntas después de guardar
@@ -208,6 +216,7 @@ export default {
     };
 
     return {
+      cursoSeleccionado, // Asegúrate de retornar la variable
       preguntas,
       cursos,
       preguntasFaltantes,
@@ -220,6 +229,7 @@ export default {
     };
   }
 };
+
 </script>
 
 <style scoped>

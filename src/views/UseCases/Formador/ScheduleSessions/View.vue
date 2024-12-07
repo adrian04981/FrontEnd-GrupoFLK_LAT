@@ -3,10 +3,8 @@
     <h2>Sesiones Programadas</h2>
     <button class="add-session-button" @click="goToProgramarSesion">Programar Nueva Sesión</button>
 
-    <!-- Carrusel de Sesiones -->
     <div class="sessions-slider-container">
       <div class="arrow left-arrow" @click="prevCard">&#x25C0;</div>
-
       <div class="sessions-slider" ref="slider">
         <div v-for="(sesion, index) in sesiones" :key="sesion.pk_sesion" class="session-card">
           <h3>{{ sesion.titulo_curso }}</h3>
@@ -15,22 +13,34 @@
           <p><strong>Modo:</strong> {{ sesion.nombre_modo }}</p>
           <p><strong>Docente Teoría:</strong> {{ sesion.docente_teoria }}</p>
           <p><strong>Docente Práctica:</strong> {{ sesion.docente_practica }}</p>
-          <p>
-            <strong>Dirección Virtual:</strong>
-            <a :href="sesion.direccion_session_virtual" target="_blank">
-              {{ sesion.direccion_session_virtual }}
-            </a>
-          </p>
         </div>
       </div>
-
       <div class="arrow right-arrow" @click="nextCard">&#x25B6;</div>
     </div>
 
-    <!-- Calendario de Actividades -->
     <div class="calendar-container">
-      <h2>Calendario de Actividades</h2>
-      <vue3-calendar v-model="currentDate" :events="calendarEvents" @dayClick="handleDayClick" />
+      <h2>Agenda de Sesiones</h2>
+      <div id="calendar" ref="calendar"></div>
+    </div>
+
+    <div v-if="showModal" class="modal">
+      <div class="modal-content">
+        <span class="close" @click="showModal = false">&times;</span>
+        <h3>Detalles de la Sesión</h3>
+        <p><strong>ID:</strong> {{ selectedSession.pk_sesion }}</p>
+        <p><strong>Título:</strong> {{ selectedSession.titulo_curso }}</p>
+        <p><strong>Fecha:</strong> {{ selectedSession.fecha_session }}</p>
+        <p><strong>Hora:</strong> {{ selectedSession.hora_inicio }} - {{ selectedSession.hora_fin }}</p>
+        <p><strong>Modo:</strong> {{ selectedSession.nombre_modo }}</p>
+        <p><strong>Docente Teoría:</strong> {{ selectedSession.docente_teoria }}</p>
+        <p><strong>Docente Práctica:</strong> {{ selectedSession.docente_practica }}</p>
+        <p>
+          <strong>Dirección Virtual:</strong>
+          <a :href="selectedSession.direccion_session_virtual" target="_blank">
+            {{ selectedSession.direccion_session_virtual }}
+          </a>
+        </p>
+      </div>
     </div>
   </div>
 </template>
@@ -39,27 +49,42 @@
 import { ref, onMounted } from "vue";
 import { supabase } from "@/supabase";
 import { Calendar } from "@fullcalendar/core";
+import dayGridPlugin from "@fullcalendar/daygrid";
+import timeGridPlugin from "@fullcalendar/timegrid";
+import interactionPlugin from "@fullcalendar/interaction";
 
 export default {
-  name: "SessionsList",
-  components: {
-    Calendar,
-  },
+  name: "CalendarActivities",
   setup() {
     const sesiones = ref([]);
     const slider = ref(null);
-    const currentDate = ref(new Date());
-    const calendarEvents = ref([]);
+    const calendar = ref(null);
+    const showModal = ref(false);
+    const selectedSession = ref({});
+    const userEmail = ref("");
 
     const fetchSesiones = async () => {
       try {
+        const { data: { session }, error: authError } = await supabase.auth.getSession();
+
+        if (authError || !session) {
+          throw new Error("Usuario no autenticado");
+        }
+
+        userEmail.value = session.user.email;
+
         const { data, error } = await supabase
           .from("sesiones_programadas")
           .select(
             `pk_sesion, fecha_session, hora_inicio, hora_fin, direccion_session_virtual,
-             curso:fk_curso (titulo_curso, docente_teoria:fk_docenteteoria (nombre), docente_practica:fk_docentepractico (nombre)),
-             modo:fk_modo_curso (nombre_modo)`
-          );
+             curso:fk_curso (
+              titulo_curso,
+              docente_teoria:fk_docenteteoria (nombre, correo),
+              docente_practica:fk_docentepractico (nombre)
+            ),
+            modo:fk_modo_curso (nombre_modo)`
+          )
+          .eq("curso.docente_teoria.correo", userEmail.value);
 
         if (error) throw error;
 
@@ -75,14 +100,43 @@ export default {
           docente_practica: sesion.curso.docente_practica?.nombre || "N/A",
         }));
 
-        calendarEvents.value = sesiones.value.map((sesion) => ({
-          date: sesion.fecha_session,
-          title: sesion.titulo_curso,
-          description: `${sesion.hora_inicio} - ${sesion.hora_fin}`,
-        }));
+        updateCalendarEvents();
       } catch (error) {
         console.error("Error al obtener sesiones programadas:", error.message);
       }
+    };
+
+    const updateCalendarEvents = () => {
+      if (calendar.value) {
+        calendar.value.removeAllEvents();
+        sesiones.value.forEach((sesion) => {
+          calendar.value.addEvent({
+            title: sesion.titulo_curso,
+            start: `${sesion.fecha_session}T${sesion.hora_inicio}`,
+            end: `${sesion.fecha_session}T${sesion.hora_fin}`,
+            extendedProps: sesion,
+          });
+        });
+      }
+    };
+
+    const initializeCalendar = () => {
+      const calendarEl = document.getElementById("calendar");
+      calendar.value = new Calendar(calendarEl, {
+        plugins: [dayGridPlugin, timeGridPlugin, interactionPlugin],
+        initialView: "dayGridMonth",
+        headerToolbar: {
+          left: "prev,next today",
+          center: "title",
+          right: "dayGridMonth,timeGridWeek,timeGridDay",
+        },
+        events: [],
+        eventClick: (info) => {
+          selectedSession.value = info.event.extendedProps;
+          showModal.value = true;
+        },
+      });
+      calendar.value.render();
     };
 
     const nextCard = () => {
@@ -104,28 +158,27 @@ export default {
     };
 
     const goToProgramarSesion = () => {
-      window.location.href = "/ProgrammerSession";
+      window.location.href = "/formador-dashboard/ProgrammerSession";
     };
 
-    const handleDayClick = (date) => {
-      alert(`Seleccionaste el día: ${date}`);
-    };
-
-    onMounted(fetchSesiones);
+    onMounted(async () => {
+      await fetchSesiones();
+      initializeCalendar();
+    });
 
     return {
       sesiones,
       slider,
       nextCard,
       prevCard,
-      currentDate,
-      calendarEvents,
-      handleDayClick,
       goToProgramarSesion,
+      showModal,
+      selectedSession,
     };
   },
 };
 </script>
+
 
 <style scoped>
 .sessions-container {
@@ -255,3 +308,4 @@ h2 {
   margin-bottom: 20px;
 }
 </style>
+
