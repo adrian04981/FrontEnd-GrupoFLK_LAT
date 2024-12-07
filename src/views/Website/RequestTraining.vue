@@ -537,90 +537,91 @@ export default {
     }
 
     const submitForm = async () => {
-      try {
-        if (!isFormValid.value) {
-          Swal.fire({
-            icon: 'error',
-            title: 'Error',
-            text: 'Por favor, corrija los errores del formulario'
-          })
-          return
-        }
+  try {
+    // Primero validamos el DNI y el correo electrónico antes de proceder
+    const isValidDni = await validateDni()
+    const isValidEmail = await validateEmail()
 
-        const isValidDni = await validateDni()
-        const isValidEmail = await validateEmail()
-
-        if (!isValidDni || !isValidEmail) {
-          return
-        }
-
-        const formData = {
-          ...form.value,
-          ...consentimientos.value
-        }
-
-        const { error } = await supabase
-          .from('solicitud_capacitacion')
-          .insert([formData])
-
-        if (error) throw error
-
-        Swal.fire({
-          icon: 'success',
-          title: 'Éxito',
-          text: 'Solicitud enviada correctamente'
-        })
-
-        // Reset form
-        form.value = {
-          nombre_completo: '',
-          nro_telefonico: '',
-          dni: '',
-          fecha_nacimiento: '',
-          direccion: '',
-          telefono_contacto: '',
-          correo_electronico: '',
-          nacionalidad: '',
-          ocupacion_actual: '',
-          nombre_empresa: '',
-          cargo_actual: '',
-          experiencia_maquinaria: '',
-          nombre_contacto_emergencia: '',
-          relacion_contacto_emergencia: '',
-          telefono_contacto_emergencia: '',
-          fk_curso: null,
-          fecha_inicio_preferida: '',
-          turno_preferido: '',
-          dni_adjunto: null,
-          certificado_medico_adjunto: null,
-          licencia_conducir_adjunto: null,
-          alergias_condiciones: '',
-          necesidades_especiales: '',
-          firma: null
-        }
-        
-        fileNames.value = {
-          dni_adjunto: '',
-          certificado_medico_adjunto: '',
-          licencia_conducir_adjunto: '',
-          firma: ''
-        }
-
-        consentimientos.value = {
-          consentimiento_participacion: false,
-          autorizacion_imagen: false,
-          consentimiento_tratamiento_datos: false
-        }
-
-      } catch (error) {
-        console.error('Error al enviar formulario:', error)
-        Swal.fire({
-          icon: 'error',
-          title: 'Error',
-          text: 'Error al enviar la solicitud'
-        })
-      }
+    if (!isValidDni || !isValidEmail) {
+      return
     }
+
+    if (!isFormValid.value) {
+      Swal.fire({
+        icon: 'error',
+        title: 'Error',
+        text: 'Por favor, corrija los errores del formulario'
+      })
+      return
+    }
+
+    const formData = {
+      ...form.value,
+      ...consentimientos.value
+    }
+
+    const { error } = await supabase
+      .from('solicitud_capacitacion')
+      .insert([formData])
+
+    if (error) throw error
+
+    Swal.fire({
+      icon: 'success',
+      title: 'Éxito',
+      text: 'Solicitud enviada correctamente'
+    })
+
+    // Reset form
+    form.value = {
+      nombre_completo: '',
+      nro_telefonico: '',
+      dni: '',
+      fecha_nacimiento: '',
+      direccion: '',
+      telefono_contacto: '',
+      correo_electronico: '',
+      nacionalidad: '',
+      ocupacion_actual: '',
+      nombre_empresa: '',
+      cargo_actual: '',
+      experiencia_maquinaria: '',
+      nombre_contacto_emergencia: '',
+      relacion_contacto_emergencia: '',
+      telefono_contacto_emergencia: '',
+      fk_curso: null,
+      fecha_inicio_preferida: '',
+      turno_preferido: '',
+      dni_adjunto: null,
+      certificado_medico_adjunto: null,
+      licencia_conducir_adjunto: null,
+      alergias_condiciones: '',
+      necesidades_especiales: '',
+      firma: null
+    }
+    
+    fileNames.value = {
+      dni_adjunto: '',
+      certificado_medico_adjunto: '',
+      licencia_conducir_adjunto: '',
+      firma: ''
+    }
+
+    consentimientos.value = {
+      consentimiento_participacion: false,
+      autorizacion_imagen: false,
+      consentimiento_tratamiento_datos: false
+    }
+
+  } catch (error) {
+    console.error('Error al enviar formulario:', error)
+    Swal.fire({
+      icon: 'error',
+      title: 'Error',
+      text: 'Error al enviar la solicitud'
+    })
+  }
+}
 
     onMounted(loadData)
 
