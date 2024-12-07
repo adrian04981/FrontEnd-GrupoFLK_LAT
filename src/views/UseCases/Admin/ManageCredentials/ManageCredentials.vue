@@ -227,18 +227,19 @@ export default {
         console.log(autor);
 
         // Generar un usuario y contraseña por defecto
-        const usuario = data.correo_electronico.split('@')[0];  // Usamos el correo como base para el usuario
-        const contrasena = Math.random().toString(36).slice(-8); // Contraseña aleatoria de 8 caracteres
+        const usuario = operador.correo_electronico;  // Usuario será el correo electrónico
+        const contrasena = operador.correo_electronico;  // La contraseña debería ser diferente y no el correo
 
         // Crear las credenciales
         const nuevaCredencial = {
           FK_Operador: data.Pk_Alumno,  // Asignamos el Pk_Alumno del operador encontrado
-          usuario: usuario,
-          contrasena: contrasena,
+          usuario: usuario,  // El usuario es el correo electrónico
+          contrasena: contrasena,  // La contraseña es temporal
           autor: autor.id,  // El id del autor obtenido desde el localStorage
           ultimo_autor: autor.id,  // El último autor también es el mismo por ahora
           fecha_creacion: new Date(),
         };
+        console.log(nuevaCredencial);
 
         // Guardar las credenciales en la base de datos usando Supabase
         const { data: credencialGuardada, error: saveError } = await supabase
@@ -251,11 +252,47 @@ export default {
         }
 
         console.log('Credenciales guardadas:', credencialGuardada);
-        return credencialGuardada;  // Devuelve las credenciales guardadas
+
+        // Ahora, crear el usuario con supabase.auth.signUp
+        const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
+          email: usuario,  // Usamos el correo electrónico como el email
+          password: contrasena,  // Usamos la contraseña temporal
+        });
+
+        if (signUpError) {
+          console.error("Error al crear el usuario:", signUpError.message);
+          throw new Error("Error al crear el usuario: " + signUpError.message);
+        }
+
+        const user = signUpData.user;
+
+        if (user) {
+          // Asignar rol al usuario después de la creación
+          const { error: insertError } = await supabase
+            .from('asignaciondeusuario')
+            .insert([
+              { id: user.id, rol: 5}  // Asumí que `operador.rol` está disponible
+            ]);
+
+          if (insertError) {
+            console.error("Error al asignar el rol al usuario:", insertError.message);
+            throw new Error("Error al asignar el rol al usuario.");
+          }
+
+          console.log('Usuario registrado y rol asignado:', user);
+
+          // Retornar las credenciales y el usuario creado
+          return {
+            credencialGuardada,
+            usuarioCreado: user
+          };
+        } else {
+          throw new Error("Usuario no creado.");
+        }
 
       } catch (error) {
         console.error("Error al crear las credenciales:", error.message);
-        throw new Error("No se pudieron crear las credenciales.");
+        throw new Error("No se pudieron crear las credenciales y el usuario.");
       }
     },
   },
