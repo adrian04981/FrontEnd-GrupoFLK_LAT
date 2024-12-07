@@ -23,15 +23,17 @@ export default {
 
     const handleSubmit = async () => {
       try {
+        const autor = JSON.parse(localStorage.getItem('user'));
+        if (!autor) {
+          throw new Error("No se ha encontrado el autor en el localStorage.");
+        }
         const { data, error } = await supabase
           .from('tipo_de_maquinaria')
-          .insert([
-            {
-              descripcion: form.value.descripcion,
-              autor: form.value.userId,
-              ultimo_autor: form.value.userId
-            }
-          ])
+          .insert([{
+            descripcion: form.value.descripcion,
+            autor: autor.id,
+            ultimo_autor: autor.id
+          }])
 
         if (error) throw error
         emit('created') // Emite un evento para actualizar la lista
@@ -63,7 +65,7 @@ export default {
     width: 100%;
     margin: 0 auto;
   }
-  
+
   .form-actions {
     justify-content: space-between;
     flex-direction: column;

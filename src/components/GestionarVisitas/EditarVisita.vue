@@ -18,12 +18,8 @@
 
       <!-- Fecha de Inicio -->
       <el-form-item label="Fecha de Inicio" prop="fecha_inicio">
-        <el-date-picker
-          v-model="formData.fecha_inicio"
-          type="date"
-          placeholder="Seleccionar fecha"
-          format="yyyy-MM-dd"
-        />
+        <el-date-picker v-model="formData.fecha_inicio" type="date" placeholder="Seleccionar fecha"
+          format="yyyy-MM-dd" />
       </el-form-item>
 
       <!-- Tipo de Producto -->

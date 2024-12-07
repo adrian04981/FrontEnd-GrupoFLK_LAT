@@ -20,7 +20,7 @@ export default {
     ListMachinery,
   },
 };
-</script>
+</script> 
 
 <style scoped>
 .gestionar-personal-view {

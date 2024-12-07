@@ -11,17 +11,13 @@
 
       <el-form-item label="Tipo de Maquinaria" prop="tipo_maquinaria_id">
         <el-select v-model="form.tipo_maquinaria_id" placeholder="Selecciona tipo de maquinaria" clearable>
-          <el-option v-for="maquinaria in maquinarias" :key="maquinaria.id" :label="maquinaria.descripcion" :value="maquinaria.id" />
+          <el-option v-for="maquinaria in maquinarias" :key="maquinaria.id" :label="maquinaria.descripcion"
+            :value="maquinaria.id" />
         </el-select>
       </el-form-item>
 
       <el-form-item label="Subir Imagen (Opcional)">
-        <el-upload
-          class="upload-demo"
-          ref="upload"
-          action=""
-          :auto-upload="false"
-          :show-file-list="false"
+        <el-upload class="upload-demo" ref="upload" action="" :auto-upload="false" :show-file-list="false"
           :on-change="handleFileChange">
           <el-button size="small" type="primary">Seleccionar Imagen</el-button>
           <div v-if="fileName">{{ fileName }}</div>
@@ -116,43 +112,60 @@ async function uploadImage(file) {
 // Función para crear una nueva inspección
 async function createInspection() {
   try {
-    // Validar el formulario antes de proceder
+    // Validate the form before proceeding
     await createForm.value.validate()
 
     // Subir la imagen si se ha seleccionado una y obtener la URL pública (null si no hay imagen)
     const imageUrl = await uploadImage(form.value.imagen)
 
     // Obtener el usuario actual
-    const autor= GetUser()
+    const autor = GetUser()
 
-    // Insertar el nuevo registro en la tabla tipo_de_inspeccion
+    // Check if the name already exists in the database
+    const { data, error: checkError } = await supabase
+      .from('tipo_de_inspeccion')
+      .select('*')
+      .eq('nombre', form.value.nombre)
+
+    if (checkError) {
+      console.error('Error checking duplicate:', checkError.message)
+      throw new Error('Error checking for duplicates')
+    }
+
+    if (data.length > 0) {
+      throw new Error('El nombre de tipo de inspección ya existe')
+    }
+
+    // Insert the new record into the tipo_de_inspeccion table
     const { error } = await supabase
       .from('tipo_de_inspeccion')
       .insert({
         nombre: form.value.nombre,
         descripcion: form.value.descripcion,
         tipo_de_maquinaria_id: form.value.tipo_maquinaria_id,
-        autor:autor,
-        ultimo_autor: autor, // El usuario que crea será el último autor también
-        URL_IMG: null // Guardar la URL de la imagen (null si no hay imagen)
-      })
+        autor: autor,
+        ultimo_autor: autor,
+        URL_IMG: imageUrl || null
+      });
 
     if (error) {
-      throw new Error('Error al crear el tipo de inspección: ' + error.message)
+      console.error('Error:', error.message);
+      throw new Error('Error al crear el tipo de inspección: ' + error.message);
     }
 
-    // Mensaje de éxito
+    // Success message
     ElMessage.success('Tipo de Inspección creado con éxito')
 
-    // Emitir evento al componente padre para refrescar los datos
+    // Emit event to refresh data
     form.value = { nombre: '', descripcion: '', tipo_maquinaria_id: null, imagen: null }
     fileName.value = ''
     errorMessage.value = ''
-    emit('created') // Se emite el evento 'created' correctamente
+    emit('created')
 
   } catch (err) {
     errorMessage.value = err.message || 'Error desconocido'
   }
+
 }
 
 // Montar el componente y cargar los tipos de maquinaria

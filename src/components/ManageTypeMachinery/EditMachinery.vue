@@ -29,11 +29,15 @@ export default {
 
     const handleSubmit = async () => {
       try {
+        const autor = JSON.parse(localStorage.getItem('user'));
+        if (!autor) {
+          throw new Error("No se ha encontrado el autor en el localStorage.");
+        }
         const { data, error } = await supabase
           .from('tipo_de_maquinaria')
           .update({
             descripcion: form.value.descripcion,
-            ultimo_autor: GetUser() // Actualiza el último autor al usuario autenticado
+            ultimo_autor: autor.id // Actualiza el último autor al usuario autenticado
           })
           .eq('id', props.machinery.id)
 
@@ -67,7 +71,7 @@ export default {
     width: 100%;
     margin: 0 auto;
   }
-  
+
   .form-actions {
     justify-content: space-between;
     flex-direction: column;
