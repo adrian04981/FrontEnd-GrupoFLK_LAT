@@ -55,6 +55,10 @@
         </div>
       </div>
 
+      <div v-if="puntajeTotal < 14" class="mensaje-practica">
+        <p><strong>Lo siento</strong>, no has alcanzado el puntaje mínimo para realizar la evaluación práctica. Sigue
+          intentándolo.</p>
+      </div>
       <div class="resultados-detalle">
         <h2>Detalle de Respuestas</h2>
         <div v-for="(resultado, index) in resultados" :key="resultado.id" class="resultado-item">
@@ -83,7 +87,15 @@
           </div>
         </div>
       </div>
+
+      <!-- Mensaje de evaluación práctica -->
+      <div v-if="puntajeTotal >= 14" class="mensaje-practica">
+        <p><strong>¡Felicidades!</strong> Has aprobado la evaluación teórica con un puntaje suficiente. Eres apto para
+          realizar la evaluación práctica. ¡Mucha suerte!</p>
+      </div>
+
     </div>
+
   </div>
 </template>
 
@@ -101,6 +113,7 @@ export default {
       puntajeTotal: 0,
       cursos: [], // Array para almacenar todos los cursos
       cursoSeleccionado: null, // Curso seleccionado para iniciar evaluación
+      operador: null,
     };
   },
   async created() {
@@ -130,6 +143,8 @@ export default {
         .select('fk_curso')
         .eq('fk_operador', response.data[0].Pk_Alumno);
 
+
+      this.operador = response.data[0].Pk_Alumno
       if (matriculasError) {
         console.error('Error al obtener las matrículas:', matriculasError.message);
         return;
@@ -183,11 +198,21 @@ export default {
       this.mostrarEvaluacion = true;
     },
     async submitAnswers() {
+      // Validar que todas las preguntas tengan respuesta
+      const todasRespondidas = this.preguntas.every(pregunta =>
+        this.respuestas[pregunta.id] !== undefined
+      );
+
+      if (!todasRespondidas) {
+        alert('Por favor, responde todas las preguntas antes de enviar.');
+        return;
+      }
+
       const respuestasArray = Object.keys(this.respuestas).map((id) => ({
         pregunta_id: parseInt(id),
         respuesta: this.respuestas[id],
-        curso_id: this.cursoSeleccionado.pk_curso, // Incluir el id del curso
-        operador_id: this.cursoSeleccionado.operador_id, // Asumiendo que tienes un campo operador_id en los cursos
+        curso_id: this.cursoSeleccionado.pk_curso,
+        operador_id: this.operador,
         fecha_envio: new Date().toISOString(),
       }));
 
@@ -200,18 +225,26 @@ export default {
           return;
         }
 
-        this.resultados = this.preguntas.map((pregunta) => ({
-          id: pregunta.id,
-          enunciado: pregunta.enunciado,
-          correcta: pregunta.respuesta_correcta,
-          respuesta: this.respuestas[pregunta.id] || 'No respondida',
-        }));
+        // Procesar resultados con validación más precisa
+        this.resultados = this.preguntas.map((pregunta) => {
+          const respuestaUsuario = this.respuestas[pregunta.id];
+          const esCorrecta = respuestaUsuario === pregunta.respuesta_correcta;
 
-        this.puntajeTotal = this.resultados.filter(
-          (resultado) => resultado.correcta === resultado.respuesta
-        ).length;
+          return {
+            id: pregunta.id,
+            enunciado: pregunta.enunciado,
+            correcta: pregunta.respuesta_correcta,
+            respuesta: respuestaUsuario || 'No respondida',
+            esCorrecta: esCorrecta
+          };
+        });
 
+        // Calcular puntaje total basado en respuestas correctas
+        this.puntajeTotal = this.resultados.filter(resultado => resultado.esCorrecta).length;
+
+        // Mostrar vista de resultados
         this.mostrarResultados = true;
+        this.mostrarEvaluacion = false;
       } catch (error) {
         console.error('Error general al enviar:', error);
         alert('Error inesperado al enviar las respuestas.');
@@ -238,6 +271,23 @@ export default {
 .carta-curso h2 {
   font-size: 2rem;
   margin-bottom: 10px;
+}
+
+.mensaje-practica {
+  margin-top: 20px;
+  padding: 15px;
+  border-radius: 8px;
+  background-color: #f5f5f5;
+  font-size: 1.1rem;
+  color: #333;
+}
+
+.mensaje-practica strong {
+  font-weight: bold;
+}
+
+.mensaje-practica p {
+  margin: 0;
 }
 
 .carta-curso p {
