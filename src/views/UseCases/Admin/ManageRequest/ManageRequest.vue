@@ -296,40 +296,56 @@ export default {
         paginaActual.value = numeroPaginas.value;
     };
 
-    const gestionarSolicitud = async (solicitud, estado) => {
+    async function gestionarSolicitud(solicitud, estado, motivoRechazo) {
       try {
         const nuevoEstado = estado === "aceptado" ? "Aceptada" : "Rechazada";
 
+        // Actualizar el estado de la solicitud
         const { error } = await supabase
           .from("solicitud_capacitacion")
           .update({
             estado_solicitud: nuevoEstado,
-            motivo_rechazo: estado === "rechazado" ? motivoRechazo.value : null,
+            motivo_rechazo: estado === "rechazado" ? motivoRechazo : null,
           })
           .eq("id_solicitud", solicitud.id_solicitud);
 
         if (error) throw error;
 
-        // Preparar los datos para el correo electrónico
+        // Buscar si el operador ya existe por correo electrónico
+        const { data: operadores, error: operadoresError } = await supabase
+          .from("Operador")
+          .select("Pk_Alumno")
+          .eq("correo_electronico", solicitud.correo_electronico);
+
+        if (operadoresError) throw operadoresError;
+
+        // Si no existe, crear el operador
+        if (operadores.length === 0) {
+          const operadorCreado = await crearOperador(solicitud);
+          if (!operadorCreado) {
+            throw new Error("No se pudo crear el operador.");
+          }
+        }
+
+        // Construir el mensaje de correo
+        const saludo = `Hola ${solicitud.nombre_completo},\n\n`;
+        const detalleSolicitud = `Detalles de la solicitud:\n- Curso: ${getNombreCurso(solicitud.fk_curso)}\n- Fecha de solicitud: ${formatFecha(solicitud.fecha_solicitud)}\n\n`;
+
+        let mensaje;
+        if (nuevoEstado === "Aceptada") {
+          mensaje = `${saludo}¡Estamos emocionados de informarte que tu solicitud de capacitación ha sido aceptada con éxito!\n\n${detalleSolicitud}Pronto te contactaremos con más información.\n\nPara completar tu inscripción, por favor realiza el pago en el siguiente enlace:\n\n(https://www.grupo-flk-pago.com)\n\n¡Gracias por confiar en nosotros!`;
+        } else {
+          mensaje = `${saludo}Lamentamos informarte que tu solicitud de capacitación ha sido rechazada.\n\nMotivo del rechazo:\n"${motivoRechazo}"\n\nSi tienes alguna pregunta, no dudes en contactarnos.\n\nGracias por tu comprensión.`;
+        }
+
         const templateParams = {
           to_email: solicitud.correo_electronico,
-          subject:
-            nuevoEstado === "Aceptada"
-              ? "¡Solicitud Aceptada!"
-              : "Solicitud Rechazada",
-          message:
-            nuevoEstado === "Aceptada"
-              ? `Hola ${solicitud.nombre_completo},\n\n¡Estamos emocionados de informarte que tu solicitud de capacitación ha sido aceptada con éxito!\n\nDetalles de la solicitud:\n- Curso: ${getNombreCurso(
-                solicitud.fk_curso
-              )}\n- Fecha de solicitud: ${formatFecha(
-                solicitud.fecha_solicitud
-              )}\n\nPronto te contactaremos con más información.\n\nPara completar tu inscripción, por favor realiza el pago en el siguiente enlace:\n\n (https://www.grupo-flk-pago.com)\n\n¡Gracias por confiar en nosotros!`
-              : `Hola ${solicitud.nombre_completo},\n\nLamentamos informarte que tu solicitud de capacitación ha sido rechazada.\n\nMotivo del rechazo:\n"${motivoRechazo.value}"\n\nSi tienes alguna pregunta, no dudes en contactarnos.\n\nGracias por tu comprensión.`,
+          subject: nuevoEstado === "Aceptada" ? "¡Solicitud Aceptada!" : "Solicitud Rechazada",
+          message: mensaje,
         };
 
-
         // Enviar el correo usando EmailJS
-        emailjs.init("8GJwYc75XE3Qp05j_"); // Tu User ID de EmailJS
+        emailjs.init("8GJwYc75XE3Qp05j_");
         const { response, status } = await emailjs.send(
           "service_5u4cv8t", // Service ID
           "template_tryi5ab", // Template ID
@@ -361,7 +377,34 @@ export default {
           text: error.message,
         });
       }
-    };
+    }
+
+    async function crearOperador(solicitud) {
+      try {
+        const { error } = await supabase
+          .from("Operador")
+          .insert([
+            {
+              nombre: solicitud.nombre_completo,
+              apellidos: solicitud.nombre_completo, // Suponiendo que la contraseña es el usuario
+              fecha_nacimiento: solicitud.fecha_nacimiento,
+              nro_telefonico: solicitud.nro_telefonico,
+              correo_electronico: solicitud.correo_electronico, // Cambié a "usuario" ya que es el correo en la solicitud
+              dni: solicitud.dni, // Usamos la contraseña como DNI (ajustar según lo necesario)
+              Estado: true, // El estado del operador
+            },
+          ]);
+
+        if (error) throw error;
+
+        console.log("Operador creado con éxito.");
+        return true;
+      } catch (error) {
+        console.error("Error al crear operador:", error.message);
+        alert("Ocurrió un error al crear el operador.");
+        return false;
+      }
+    }
 
     const confirmarRechazo = async () => {
       await gestionarSolicitud(solicitudActual.value, "rechazado");
