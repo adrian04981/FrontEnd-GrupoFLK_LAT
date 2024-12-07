@@ -95,6 +95,8 @@
 <script setup>
 import { ref, onMounted, watch } from "vue";
 import { supabase } from "@/supabase.js";
+import Swal from 'sweetalert2'
+
 
 const enunciados = ref([
   "¿El operador conoce las reglas de seguridad?",
@@ -262,9 +264,14 @@ const submitEvaluacion = async () => {
       fecha_creacion: new Date(),
     });
 
+
     if (error) throw error;
 
-    alert("Evaluación registrada con éxito");
+    Swal.fire({
+      icon: "success",
+      title: "Operación exitosa",
+      text: `Se guardo satistfactoriamenteg`,
+    });
     limpiarFormulario();
   } catch (error) {
     console.error("Error al registrar evaluación:", error.message);
