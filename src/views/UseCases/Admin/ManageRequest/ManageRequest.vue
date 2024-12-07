@@ -43,7 +43,7 @@
           <td>{{ solicitud.nombre_completo }}</td>
           <td>{{ getNombreCurso(solicitud.fk_curso) }}</td>
           <td>{{ formatFecha(solicitud.fecha_solicitud) }}</td>
-          <td>{{ solicitud.estado || "Sin asignar" }}</td>
+          <td>{{ solicitud.estado_solicitud || "Sin asignar" }}</td>
           <td>
             <button @click="viewSolicitud(solicitud)" class="view-btn">
               Ver
@@ -119,37 +119,6 @@
           </button>
         </div>
       </div>
-    </div>
-
-    <!-- Segunda tabla: Carrusel de solicitudes aceptadas -->
-    <h2 class="table-title">Solicitudes Aceptadas</h2>
-    <div class="search-container">
-      <input
-        type="text"
-        v-model="searchId"
-        placeholder="Buscar por DNI"
-        class="search-input"
-      />
-    </div>
-    <div class="dashboard-aceptadas">
-      <button @click="prevCard" class="carousel-button left">‹</button>
-      <div class="aceptadas-grid" ref="aceptadasGrid">
-        <div
-          v-for="solicitud in solicitudesAceptadasFiltradas"
-          :key="solicitud.id_solicitud"
-          class="aceptada-card"
-          @click="abrirModalDetalles(solicitud)"
-        >
-          <h3>DNI: {{ solicitud.dni }}</h3>
-          <h4>{{ getNombreCurso(solicitud.fk_curso) || "Sin curso" }}</h4>
-          <p>
-            <strong>Fecha de Solicitud:</strong>
-            {{ formatFecha(solicitud.fecha_solicitud) }}
-          </p>
-          <p><strong>Solicitante:</strong> {{ solicitud.nombre_completo }}</p>
-        </div>
-      </div>
-      <button @click="nextCard" class="carousel-button right">›</button>
     </div>
 
     <!-- Modal de detalles (Segunda Tabla) -->
@@ -230,7 +199,7 @@
           </div>
           <div class="detail-item">
             <div class="detail-title">Estado:</div>
-            <div class="detail-value">{{ solicitudActual.estado }}</div>
+            <div class="detail-value">{{ solicitudActual.estado}}</div>
           </div>
         </div>
         <!-- Botón de cerrar al final -->
@@ -263,6 +232,9 @@ export default {
     const motivoRechazo = ref("");
     const solicitudActual = ref(null);
     const router = useRouter();
+
+
+
 
     const formEndpoint = ref("https://formspree.io/f/movqylzn");
 
@@ -351,17 +323,20 @@ export default {
     const gestionarSolicitud = async (solicitud, estado) => {
       try {
         const nuevoEstado = estado === "aceptado" ? "Aceptada" : "Rechazada";
+        console.log(nuevoEstado);
+        console.log(solicitud.id_solicitud);
+
         const { error } = await supabase
           .from("solicitud_capacitacion")
           .update({
-            estado: nuevoEstado,
-            motivo_rechazo: estado === "rechazado" ? motivoRechazo.value : null,
+            estado_solicitud: nuevoEstado,
+            motivo_rechazo: estado === "rechazado" ? motivoRechazo.value : null
           })
           .eq("id_solicitud", solicitud.id_solicitud);
+         console.log("error",Error);
 
         if (error) throw error;
 
-        try {
           if (nuevoEstado == "Aceptada") {
             const formData = {
               name: solicitud.nombre_completo,
@@ -413,9 +388,7 @@ export default {
           });
         }
         fetchSolicitudes();
-      } catch (error) {
-        console.error(`Error al ${estado} la solicitud:`, error);
-      }
+
     };
 
     const confirmarRechazo = async () => {

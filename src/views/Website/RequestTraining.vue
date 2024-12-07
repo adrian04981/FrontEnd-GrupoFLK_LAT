@@ -390,6 +390,8 @@ import { ref, computed, onMounted } from 'vue'
 import { supabase } from '@/supabase'
 import Swal from 'sweetalert2'
 
+
+
 export default {
   name: 'RequestTraining',
   setup() {
@@ -570,7 +572,7 @@ export default {
           title: 'Éxito',
           text: 'Solicitud enviada correctamente'
         })
-
+from: "Excited User <mailgun@sandboxe32628e65af44acf8e7da33cc324e421.mailgun.org>",
         // Reset form
         form.value = {
           nombre_completo: '',

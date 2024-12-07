@@ -66,18 +66,12 @@
           Gestionar Cursos
         </router-link>
       </el-menu-item>
-      <el-menu-item index="2-4">
+    </el-sub-menu>
+    <el-menu-item index="2-3">
         <router-link class="nav-link" to="/admin-dashboard/ManageCredentials">
           Gestionar Credenciales
         </router-link>
       </el-menu-item>
-      <el-menu-item index="2-4">
-        <router-link class="nav-link" to="/admin-dashboard/AsignacionOperador">
-          Asignacion Operador
-        </router-link>
-      </el-menu-item>
-    </el-sub-menu>
-
     <el-sub-menu index="3">
       <template #title>
         <el-icon><icon-menu /></el-icon>
