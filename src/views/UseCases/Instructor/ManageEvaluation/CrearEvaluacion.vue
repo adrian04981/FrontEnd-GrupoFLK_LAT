@@ -31,22 +31,11 @@
         </label>
         <div class="respuesta-options">
           <label>
-            <input
-              type="radio"
-              :name="'respuesta-' + index"
-              :value="'Sí'"
-              v-model="respuestas[index]"
-              required
-            />
+            <input type="radio" :name="'respuesta-' + index" :value="'Sí'" v-model="respuestas[index]" required />
             Sí
           </label>
           <label>
-            <input
-              type="radio"
-              :name="'respuesta-' + index"
-              :value="'No'"
-              v-model="respuestas[index]"
-            />
+            <input type="radio" :name="'respuesta-' + index" :value="'No'" v-model="respuestas[index]" />
             No
           </label>
         </div>
@@ -55,28 +44,17 @@
       <!-- Observaciones -->
       <div class="observaciones-container">
         <label for="observaciones" class="observaciones-label">Observaciones</label>
-        <textarea
-          id="observaciones"
-          v-model="observaciones"
-          placeholder="Ingrese observaciones detalladas sobre el desempeño del operador"
-          class="observaciones-input"
-          rows="4"
-        ></textarea>
+        <textarea id="observaciones" v-model="observaciones"
+          placeholder="Ingrese observaciones detalladas sobre el desempeño del operador" class="observaciones-input"
+          rows="4"></textarea>
       </div>
 
       <!-- Galería de Fotos -->
       <div class="galeria-container">
         <label for="fotos" class="galeria-label">Fotos de la Evaluación</label>
-        <input
-          type="file"
-          id="fotos"
-          @change="handleFotosUpload"
-          accept="image/*"
-          multiple
-          class="galeria-input"
-        />
+        <input type="file" id="fotos" @change="handleFotosUpload" accept="image/*" multiple class="galeria-input" />
         <div v-if="fotosPreview.length > 0" class="preview-container">
-          <div v-for="(url, index) in fotosPreview" :key="'foto-'+index" class="preview-item">
+          <div v-for="(url, index) in fotosPreview" :key="'foto-' + index" class="preview-item">
             <img :src="url" alt="Preview" class="preview-image" />
             <button type="button" @click="removeFoto(index)" class="remove-button">×</button>
           </div>
@@ -86,16 +64,9 @@
       <!-- Galería de Videos -->
       <div class="galeria-container">
         <label for="videos" class="galeria-label">Videos de la Evaluación</label>
-        <input
-          type="file"
-          id="videos"
-          @change="handleVideosUpload"
-          accept="video/*"
-          multiple
-          class="galeria-input"
-        />
+        <input type="file" id="videos" @change="handleVideosUpload" accept="video/*" multiple class="galeria-input" />
         <div v-if="videosPreview.length > 0" class="preview-container">
-          <div v-for="(url, index) in videosPreview" :key="'video-'+index" class="preview-item">
+          <div v-for="(url, index) in videosPreview" :key="'video-' + index" class="preview-item">
             <video :src="url" controls class="preview-video"></video>
             <button type="button" @click="removeVideo(index)" class="remove-button">×</button>
           </div>
@@ -122,8 +93,10 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from "vue";
+import { ref, onMounted, watch } from "vue";
 import { supabase } from "@/supabase.js";
+import Swal from 'sweetalert2'
+
 
 const enunciados = ref([
   "¿El operador conoce las reglas de seguridad?",
@@ -155,7 +128,7 @@ const createPreview = (file) => {
 const handleFotosUpload = async (event) => {
   const newFiles = Array.from(event.target.files);
   fotos.value = [...fotos.value, ...newFiles];
-  
+
   for (const file of newFiles) {
     const preview = await createPreview(file);
     fotosPreview.value.push(preview);
@@ -165,7 +138,7 @@ const handleFotosUpload = async (event) => {
 const handleVideosUpload = async (event) => {
   const newFiles = Array.from(event.target.files);
   videos.value = [...videos.value, ...newFiles];
-  
+
   for (const file of newFiles) {
     const preview = await createPreview(file);
     videosPreview.value.push(preview);
@@ -182,6 +155,7 @@ const removeVideo = (index) => {
   videosPreview.value = videosPreview.value.filter((_, i) => i !== index);
 };
 
+// Función para obtener los cursos
 const fetchCursos = async () => {
   const { data, error } = await supabase.from("cursos").select("pk_curso, titulo_curso");
   if (!error) {
@@ -191,14 +165,51 @@ const fetchCursos = async () => {
   }
 };
 
-const fetchOperadores = async () => {
-  const { data, error } = await supabase.from("operadores").select("Pk_Alumno, nombre");
-  if (!error) {
-    operadores.value = data;
+// Función para obtener los operadores por curso
+const fetchOperadores = async (fk_curso) => {
+  if (!fk_curso) return;
+
+  // Obtener las matrículas del curso
+  const { data: matriculas, error: matriculasError } = await supabase
+    .from("matriculas")
+    .select("fk_operador")
+    .eq("fk_curso", fk_curso);
+
+  if (matriculasError) {
+    console.error("Error al obtener las matrículas:", matriculasError.message);
+    return;
+  }
+
+  // Obtener los operadores basándonos en los fk_operador
+  const operadoresIds = matriculas.map(matricula => matricula.fk_operador);
+
+  if (operadoresIds.length > 0) {
+    const { data: operadoresData, error: operadoresError } = await supabase
+      .from("Operador")
+      .select("Pk_Alumno, nombre")
+      .in("Pk_Alumno", operadoresIds);
+
+    if (operadoresError) {
+      console.error("Error al obtener los operadores:", operadoresError.message);
+      return;
+    }
+
+    // Verificar la estructura de la respuesta y acceder directamente al array
+    operadores.value = operadoresData || [];
+    console.log(operadores.value); // Verifica que aquí ya estás obteniendo un array plano
   } else {
-    console.error("Error al obtener operadores:", error.message);
+    operadores.value = []; // No hay operadores si no hay matrículas
   }
 };
+
+// Watch para detectar cuando cambia el curso seleccionado
+watch(fk_curso, (newCurso) => {
+  if (newCurso) {
+    fetchOperadores(newCurso);
+  } else {
+    operadores.value = []; // Limpiar operadores si no hay curso seleccionado
+  }
+});
 
 const uploadFile = async (file, bucket, folder) => {
   const fileExt = file.name.split('.').pop();
@@ -219,7 +230,7 @@ const uploadFile = async (file, bucket, folder) => {
 const submitEvaluacion = async () => {
   try {
     isSubmitting.value = true;
-    
+
     const totalFiles = fotos.value.length + videos.value.length;
     let filesProcessed = 0;
     const fotosPaths = [];
@@ -248,14 +259,19 @@ const submitEvaluacion = async () => {
       enunciados: enunciados.value,
       respuestas: respuestas.value,
       observaciones: observaciones.value,
-      fotos: fotosPaths,
-      videos: videosPaths,
+      galeria: fotosPaths,
+      video: videosPaths,
       fecha_creacion: new Date(),
     });
 
+
     if (error) throw error;
 
-    alert("Evaluación registrada con éxito");
+    Swal.fire({
+      icon: "success",
+      title: "Operación exitosa",
+      text: `Se guardo satistfactoriamenteg`,
+    });
     limpiarFormulario();
   } catch (error) {
     console.error("Error al registrar evaluación:", error.message);
@@ -284,7 +300,6 @@ const cancelar = () => {
 
 onMounted(() => {
   fetchCursos();
-  fetchOperadores();
 });
 </script>
 

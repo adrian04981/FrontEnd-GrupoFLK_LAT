@@ -15,12 +15,7 @@
         <span>registros</span>
       </div>
       <div class="search-container">
-        <input
-          type="text"
-          v-model="searchQuery"
-          placeholder="Buscar por nombre del curso"
-          class="search-input"
-        />
+        <input type="text" v-model="searchQuery" placeholder="Buscar por nombre del curso" class="search-input" />
       </div>
     </div>
     <table class="solicitudes-table">
@@ -35,10 +30,7 @@
         </tr>
       </thead>
       <tbody>
-        <tr
-          v-for="solicitud in solicitudesPaginadas"
-          :key="solicitud.id_solicitud"
-        >
+        <tr v-for="solicitud in solicitudesPaginadas" :key="solicitud.id_solicitud">
           <td>{{ solicitud.dni }}</td>
           <td>{{ solicitud.nombre_completo }}</td>
           <td>{{ getNombreCurso(solicitud.fk_curso) }}</td>
@@ -48,10 +40,7 @@
             <button @click="viewSolicitud(solicitud)" class="view-btn">
               Ver
             </button>
-            <button
-              @click="gestionarSolicitud(solicitud, 'aceptado')"
-              class="view-btn"
-            >
+            <button @click="gestionarSolicitud(solicitud, 'aceptado')" class="view-btn">
               Aceptar
             </button>
             <button @click="abrirModalRechazo(solicitud)" class="view-btn">
@@ -80,24 +69,12 @@
       <button @click="irPaginaAnterior" :disabled="paginaActual === 1">
         Anterior
       </button>
-      <input
-        type="number"
-        v-model.number="paginaActual"
-        min="1"
-        :max="numeroPaginas"
-        @change="validarPagina"
-        class="pagina-input"
-      />
-      <button
-        @click="irPaginaSiguiente"
-        :disabled="paginaActual === numeroPaginas"
-      >
+      <input type="number" v-model.number="paginaActual" min="1" :max="numeroPaginas" @change="validarPagina"
+        class="pagina-input" />
+      <button @click="irPaginaSiguiente" :disabled="paginaActual === numeroPaginas">
         Siguiente
       </button>
-      <button
-        @click="irUltimaPagina"
-        :disabled="paginaActual === numeroPaginas"
-      >
+      <button @click="irUltimaPagina" :disabled="paginaActual === numeroPaginas">
         Último
       </button>
     </div>
@@ -106,10 +83,7 @@
     <div v-if="mostrarModalRechazo" class="modal-overlay">
       <div class="modal-content">
         <h3>Motivo de Rechazo</h3>
-        <textarea
-          v-model="motivoRechazo"
-          placeholder="Ingrese el motivo del rechazo"
-        ></textarea>
+        <textarea v-model="motivoRechazo" placeholder="Ingrese el motivo del rechazo"></textarea>
         <div class="modal-buttons">
           <button @click="confirmarRechazo" class="btn-cerrar-modal">
             Confirmar
@@ -199,7 +173,7 @@
           </div>
           <div class="detail-item">
             <div class="detail-title">Estado:</div>
-            <div class="detail-value">{{ solicitudActual.estado}}</div>
+            <div class="detail-value">{{ solicitudActual.estado }}</div>
           </div>
         </div>
         <!-- Botón de cerrar al final -->
@@ -217,6 +191,8 @@
 import { ref, onMounted, computed } from "vue";
 import { supabase } from "@/supabase.js";
 import { useRouter } from "vue-router";
+import emailjs from 'emailjs-com';
+import Swal from 'sweetalert2'
 
 export default {
   setup() {
@@ -320,76 +296,115 @@ export default {
         paginaActual.value = numeroPaginas.value;
     };
 
-    const gestionarSolicitud = async (solicitud, estado) => {
+    async function gestionarSolicitud(solicitud, estado, motivoRechazo) {
       try {
         const nuevoEstado = estado === "aceptado" ? "Aceptada" : "Rechazada";
-        console.log(nuevoEstado);
-        console.log(solicitud.id_solicitud);
 
+        // Actualizar el estado de la solicitud
         const { error } = await supabase
           .from("solicitud_capacitacion")
           .update({
             estado_solicitud: nuevoEstado,
-            motivo_rechazo: estado === "rechazado" ? motivoRechazo.value : null
+            motivo_rechazo: estado === "rechazado" ? motivoRechazo : null,
           })
           .eq("id_solicitud", solicitud.id_solicitud);
-         console.log("error",Error);
 
         if (error) throw error;
 
-          if (nuevoEstado == "Aceptada") {
-            const formData = {
-              name: solicitud.nombre_completo,
-              email: solicitud.correo_electronico,
-              message: "Su solicitud ha sido aprobado",
-            };
-            const response = await fetch(formEndpoint.value, {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-              },
-              body: JSON.stringify(formData),
-            });
+        // Buscar si el operador ya existe por correo electrónico
+        const { data: operadores, error: operadoresError } = await supabase
+          .from("Operador")
+          .select("Pk_Alumno")
+          .eq("correo_electronico", solicitud.correo_electronico);
 
-            if (response.ok) {
-              Swal.fire({
-                icon: "success",
-                title: "Success",
-                text: "Correo enviado exitosamente!",
-              });
-            }
-          } else {
-            const formData = {
-              name: solicitud.nombre_completo,
-              email: solicitud.correo_electronico,
-              message: "Su solicitud ha sido rechazada",
-            };
-            const response = await fetch(formEndpoint.value, {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-              },
-              body: JSON.stringify(formData),
-            });
+        if (operadoresError) throw operadoresError;
 
-            if (response.ok) {
-              Swal.fire({
-                icon: "success",
-                title: "Success",
-                text: "Correo enviado exitosamente!",
-              });
-            }
+        // Si no existe, crear el operador
+        if (operadores.length === 0) {
+          const operadorCreado = await crearOperador(solicitud);
+          if (!operadorCreado) {
+            throw new Error("No se pudo crear el operador.");
           }
-        } catch (error) {
+        }
+
+        // Construir el mensaje de correo
+        const saludo = `Hola ${solicitud.nombre_completo},\n\n`;
+        const detalleSolicitud = `Detalles de la solicitud:\n- Curso: ${getNombreCurso(solicitud.fk_curso)}\n- Fecha de solicitud: ${formatFecha(solicitud.fecha_solicitud)}\n\n`;
+
+        let mensaje;
+        if (nuevoEstado === "Aceptada") {
+          mensaje = `${saludo}¡Estamos emocionados de informarte que tu solicitud de capacitación ha sido aceptada con éxito!\n\n${detalleSolicitud}Pronto te contactaremos con más información.\n\nPara completar tu inscripción, por favor realiza el pago en el siguiente enlace:\n\n(https://www.grupo-flk-pago.com)\n\n¡Gracias por confiar en nosotros!`;
+        } else {
+          mensaje = `${saludo}Lamentamos informarte que tu solicitud de capacitación ha sido rechazada.\n\nMotivo del rechazo:\n"${motivoRechazo}"\n\nSi tienes alguna pregunta, no dudes en contactarnos.\n\nGracias por tu comprensión.`;
+        }
+
+        const templateParams = {
+          to_email: solicitud.correo_electronico,
+          subject: nuevoEstado === "Aceptada" ? "¡Solicitud Aceptada!" : "Solicitud Rechazada",
+          message: mensaje,
+        };
+
+        // Enviar el correo usando EmailJS
+        emailjs.init("8GJwYc75XE3Qp05j_");
+        const { response, status } = await emailjs.send(
+          "service_5u4cv8t", // Service ID
+          "template_tryi5ab", // Template ID
+          templateParams
+        );
+
+        if (status === 200) {
+          console.log("Correo enviado exitosamente:", response);
+          Swal.fire({
+            icon: "success",
+            title: "Operación exitosa",
+            text: `Solicitud ${nuevoEstado.toLowerCase()} y correo enviado correctamente.`,
+          });
+        } else {
+          console.error("Error en el envío del correo:", response);
           Swal.fire({
             icon: "error",
             title: "Error",
-            text: error.message,
+            text: "Error al enviar el correo de confirmación.",
           });
         }
-        fetchSolicitudes();
 
-    };
+        // Refrescar la lista de solicitudes
+        await fetchSolicitudes();
+      } catch (error) {
+        Swal.fire({
+          icon: "error",
+          title: "Error",
+          text: error.message,
+        });
+      }
+    }
+
+    async function crearOperador(solicitud) {
+      try {
+        const { error } = await supabase
+          .from("Operador")
+          .insert([
+            {
+              nombre: solicitud.nombre_completo,
+              apellidos: solicitud.nombre_completo, // Suponiendo que la contraseña es el usuario
+              fecha_nacimiento: solicitud.fecha_nacimiento,
+              nro_telefonico: solicitud.nro_telefonico,
+              correo_electronico: solicitud.correo_electronico, // Cambié a "usuario" ya que es el correo en la solicitud
+              dni: solicitud.dni, // Usamos la contraseña como DNI (ajustar según lo necesario)
+              Estado: true, // El estado del operador
+            },
+          ]);
+
+        if (error) throw error;
+
+        console.log("Operador creado con éxito.");
+        return true;
+      } catch (error) {
+        console.error("Error al crear operador:", error.message);
+        alert("Ocurrió un error al crear el operador.");
+        return false;
+      }
+    }
 
     const confirmarRechazo = async () => {
       await gestionarSolicitud(solicitudActual.value, "rechazado");
@@ -497,15 +512,19 @@ export default {
   max-width: 100%;
   margin: 0 auto;
   padding: 1.5rem;
-  background-color: #f9f9f9; /* Fondo claro */
-  border-radius: 8px; /* Bordes redondeados */
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1); /* Sombras suaves */
+  background-color: #f9f9f9;
+  /* Fondo claro */
+  border-radius: 8px;
+  /* Bordes redondeados */
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  /* Sombras suaves */
 }
 
 /* Títulos */
 .page-title,
 .table-title {
-  color: #333333; /* Color de texto más suave */
+  color: #333333;
+  /* Color de texto más suave */
   text-align: center;
   font-weight: bold;
   margin-bottom: 1rem;
@@ -524,16 +543,21 @@ export default {
 .solicitudes-table {
   width: 100%;
   border-collapse: collapse;
-  background-color: #ffffff; /* Fondo blanco */
-  color: #444444; /* Texto más suave */
+  background-color: #ffffff;
+  /* Fondo blanco */
+  color: #444444;
+  /* Texto más suave */
   border-radius: 8px;
   overflow: hidden;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); /* Sombras suaves */
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  /* Sombras suaves */
 }
 
 .solicitudes-table th {
-  background-color: #4a90e2; /* Fondo azul vibrante */
-  color: #ffffff; /* Texto blanco */
+  background-color: #4a90e2;
+  /* Fondo azul vibrante */
+  color: #ffffff;
+  /* Texto blanco */
   padding: 0.75rem;
   font-size: 1rem;
   text-align: left;
@@ -541,22 +565,27 @@ export default {
 
 .solicitudes-table td {
   padding: 0.75rem;
-  border-bottom: 1px solid #eeeeee; /* Bordes suaves */
-  background-color: #fdfdfd; /* Fondo claro */
+  border-bottom: 1px solid #eeeeee;
+  /* Bordes suaves */
+  background-color: #fdfdfd;
+  /* Fondo claro */
 }
 
 .solicitudes-table tr:nth-child(even) td {
-  background-color: #f7f9fc; /* Fondo alternado para filas pares */
+  background-color: #f7f9fc;
+  /* Fondo alternado para filas pares */
 }
 
 .solicitudes-table tr:hover td {
-  background-color: #eaf4ff; /* Resaltado en hover */
+  background-color: #eaf4ff;
+  /* Resaltado en hover */
   transition: background-color 0.2s ease-in-out;
 }
 
 /* Botones */
 .view-btn {
-  background-color: #007bff; /* Azul principal */
+  background-color: #007bff;
+  /* Azul principal */
   color: #ffffff;
   border: none;
   padding: 0.5rem 1rem;
@@ -566,13 +595,15 @@ export default {
 }
 
 .view-btn:hover {
-  background-color: #0056b3; /* Azul más oscuro */
+  background-color: #0056b3;
+  /* Azul más oscuro */
   transform: scale(1.05);
 }
 
 .pagination button {
   padding: 0.5rem 1rem;
-  background-color: #4a90e2; /* Azul vibrante */
+  background-color: #4a90e2;
+  /* Azul vibrante */
   color: white;
   border: none;
   border-radius: 5px;
@@ -586,7 +617,8 @@ export default {
 }
 
 .pagination button:hover:enabled {
-  background-color: #0056b3; /* Azul más oscuro */
+  background-color: #0056b3;
+  /* Azul más oscuro */
 }
 
 /* Controles de búsqueda y paginación */
@@ -608,14 +640,18 @@ export default {
   border: 1px solid #cccccc;
   border-radius: 5px;
   padding: 0.5rem;
-  background-color: #ffffff; /* Fondo blanco */
-  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.1); /* Apariencia de relieve */
+  background-color: #ffffff;
+  /* Fondo blanco */
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.1);
+  /* Apariencia de relieve */
 }
 
 .search-input:focus {
-  border-color: #007bff; /* Resaltado azul en foco */
+  border-color: #007bff;
+  /* Resaltado azul en foco */
   outline: none;
-  box-shadow: 0 0 5px rgba(0, 123, 255, 0.5); /* Sombra azul */
+  box-shadow: 0 0 5px rgba(0, 123, 255, 0.5);
+  /* Sombra azul */
 }
 
 /* Carrusel de solicitudes aceptadas */
@@ -624,19 +660,24 @@ export default {
 }
 
 .aceptada-card {
-  background-color: #ffffff; /* Fondo blanco */
-  border: 1px solid #4a90e2; /* Borde azul vibrante */
+  background-color: #ffffff;
+  /* Fondo blanco */
+  border: 1px solid #4a90e2;
+  /* Borde azul vibrante */
   color: #333333;
   text-align: center;
   border-radius: 10px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1); /* Sombras suaves */
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  /* Sombras suaves */
   transition: transform 0.2s, box-shadow 0.3s;
 }
 
 .aceptada-card:hover {
-  background-color: #eaf4ff; /* Fondo azul claro */
+  background-color: #eaf4ff;
+  /* Fondo azul claro */
   transform: scale(1.02);
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.15); /* Sombras más intensas */
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.15);
+  /* Sombras más intensas */
 }
 
 /* Modal */
@@ -677,7 +718,8 @@ export default {
 }
 
 .modal-buttons button.btn-cerrar-modal {
-  background-color: #ff4d4f; /* Rojo vibrante */
+  background-color: #ff4d4f;
+  /* Rojo vibrante */
   color: white;
 }
 
@@ -686,32 +728,40 @@ export default {
 }
 
 .modal-buttons button.btn-confirmar {
-  background-color: #4caf50; /* Verde */
+  background-color: #4caf50;
+  /* Verde */
   color: white;
 }
 
 .modal-buttons button.btn-confirmar:hover {
-  background-color: #2e7d32; /* Verde más oscuro */
+  background-color: #2e7d32;
+  /* Verde más oscuro */
 }
+
 /* Estilos para el carrusel */
 .dashboard-aceptadas {
   margin-top: 2rem;
   display: flex;
   align-items: center;
   overflow: hidden;
-  position: relative; /* Necesario para las flechas */
+  position: relative;
+  /* Necesario para las flechas */
 }
 
 .aceptadas-grid {
   display: flex;
-  gap: 1rem; /* Espaciado entre tarjetas */
-  overflow-x: auto; /* Permitir desplazamiento horizontal */
-  scroll-behavior: smooth; /* Movimiento suave */
+  gap: 1rem;
+  /* Espaciado entre tarjetas */
+  overflow-x: auto;
+  /* Permitir desplazamiento horizontal */
+  scroll-behavior: smooth;
+  /* Movimiento suave */
   padding: 1rem;
 }
 
 .aceptada-card {
-  flex: 0 0 250px; /* Cada tarjeta tiene un ancho fijo */
+  flex: 0 0 250px;
+  /* Cada tarjeta tiene un ancho fijo */
   background-color: #ffffff;
   border: 1px solid #4a90e2;
   color: #333333;
@@ -764,6 +814,7 @@ export default {
   background-color: #cccccc;
   cursor: not-allowed;
 }
+
 /* Fondo translúcido del modal */
 .modal-overlay {
   position: fixed;
@@ -771,22 +822,27 @@ export default {
   left: 0;
   width: 100%;
   height: 100%;
-  background-color: rgba(0, 0, 0, 0.5); /* Fondo oscuro translúcido */
+  background-color: rgba(0, 0, 0, 0.5);
+  /* Fondo oscuro translúcido */
   display: flex;
   justify-content: center;
   align-items: center;
-  z-index: 1000; /* Aparece sobre otros elementos */
+  z-index: 1000;
+  /* Aparece sobre otros elementos */
 }
 
 /* Contenedor del modal */
 .modal-content {
   background-color: #ffffff;
   padding: 2rem;
-  border-radius: 12px; /* Bordes redondeados */
-  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2); /* Sombras suaves */
+  border-radius: 12px;
+  /* Bordes redondeados */
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+  /* Sombras suaves */
   width: 80%;
   max-width: 500px;
-  animation: fadeIn 0.3s ease-out; /* Animación de aparición */
+  animation: fadeIn 0.3s ease-out;
+  /* Animación de aparición */
   position: relative;
 }
 
@@ -795,7 +851,8 @@ export default {
   font-size: 1.8rem;
   color: #333333;
   margin-bottom: 1rem;
-  text-align: center; /* Centrar el texto */
+  text-align: center;
+  /* Centrar el texto */
   font-weight: bold;
 }
 
@@ -803,7 +860,8 @@ export default {
 .modal-details {
   display: flex;
   flex-direction: column;
-  gap: 0.8rem; /* Espaciado entre elementos */
+  gap: 0.8rem;
+  /* Espaciado entre elementos */
 }
 
 .detail-item {
@@ -826,21 +884,25 @@ export default {
 textarea {
   width: 100%;
   min-height: 100px;
-  resize: none; /* Evitar redimensionar */
+  resize: none;
+  /* Evitar redimensionar */
   padding: 0.8rem;
   border: 1px solid #cccccc;
   border-radius: 8px;
   background-color: #f9f9f9;
   font-size: 1rem;
   color: #333333;
-  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.1); /* Apariencia de relieve */
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.1);
+  /* Apariencia de relieve */
   transition: border-color 0.2s ease;
 }
 
 textarea:focus {
-  border-color: #007bff; /* Azul en foco */
+  border-color: #007bff;
+  /* Azul en foco */
   outline: none;
-  box-shadow: 0 0 5px rgba(0, 123, 255, 0.3); /* Resaltado en foco */
+  box-shadow: 0 0 5px rgba(0, 123, 255, 0.3);
+  /* Resaltado en foco */
 }
 
 /* Fondo translúcido del modal */
@@ -850,7 +912,8 @@ textarea:focus {
   left: 0;
   width: 100%;
   height: 100%;
-  background-color: rgba(0, 0, 0, 0.5); /* Fondo oscuro translúcido */
+  background-color: rgba(0, 0, 0, 0.5);
+  /* Fondo oscuro translúcido */
   display: flex;
   justify-content: center;
   align-items: center;
@@ -861,14 +924,21 @@ textarea:focus {
 .modal-content {
   background-color: #ffffff;
   padding: 2rem;
-  border-radius: 12px; /* Bordes redondeados */
-  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2); /* Sombras suaves */
+  border-radius: 12px;
+  /* Bordes redondeados */
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+  /* Sombras suaves */
   width: 90%;
-  max-width: 600px; /* Ancho máximo del modal */
-  max-height: 80%; /* Altura máxima del modal */
-  overflow-y: auto; /* Permitir desplazamiento vertical */
-  position: relative; /* Necesario para el botón cerrar */
-  animation: fadeIn 0.3s ease-out; /* Animación */
+  max-width: 600px;
+  /* Ancho máximo del modal */
+  max-height: 80%;
+  /* Altura máxima del modal */
+  overflow-y: auto;
+  /* Permitir desplazamiento vertical */
+  position: relative;
+  /* Necesario para el botón cerrar */
+  animation: fadeIn 0.3s ease-out;
+  /* Animación */
 }
 
 /* Título del modal */
@@ -883,8 +953,10 @@ textarea:focus {
 /* Diseño en grid para los campos */
 .modal-details {
   display: grid;
-  grid-template-columns: 1fr 1fr; /* Dos columnas iguales */
-  gap: 1rem; /* Espaciado entre elementos */
+  grid-template-columns: 1fr 1fr;
+  /* Dos columnas iguales */
+  gap: 1rem;
+  /* Espaciado entre elementos */
   margin-bottom: 1rem;
 }
 
@@ -919,7 +991,8 @@ textarea:focus {
 }
 
 .modal-close:hover {
-  color: #ff4d4f; /* Cambia a rojo al pasar el mouse */
+  color: #ff4d4f;
+  /* Cambia a rojo al pasar el mouse */
 }
 
 /* Botón de cerrar al final */
@@ -955,6 +1028,7 @@ textarea:focus {
     opacity: 0;
     transform: scale(0.9);
   }
+
   to {
     opacity: 1;
     transform: scale(1);

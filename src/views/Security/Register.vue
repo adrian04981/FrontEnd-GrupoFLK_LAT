@@ -12,14 +12,8 @@
           <label for="email">Correo Electrónico</label>
           <div class="input-container">
             <i class="fas fa-envelope input-icon"></i>
-            <input
-              type="email"
-              id="email"
-              v-model="email"
-              placeholder="ejemplo@correo.com"
-              required
-              class="form-input"
-            />
+            <input type="email" id="email" v-model="email" placeholder="ejemplo@correo.com" required
+              class="form-input" />
           </div>
         </div>
 
@@ -27,19 +21,9 @@
           <label for="password">Contraseña</label>
           <div class="input-container">
             <i class="fas fa-lock input-icon"></i>
-            <input
-              :type="showPassword ? 'text' : 'password'"
-              id="password"
-              v-model="password"
-              placeholder="Ingrese su contraseña"
-              required
-              class="form-input"
-            />
-            <button 
-              type="button" 
-              class="password-toggle"
-              @click="togglePassword"
-            >
+            <input :type="showPassword ? 'text' : 'password'" id="password" v-model="password"
+              placeholder="Ingrese su contraseña" required class="form-input" />
+            <button type="button" class="password-toggle" @click="togglePassword">
               <i :class="showPassword ? 'fas fa-eye-slash' : 'fas fa-eye'"></i>
             </button>
           </div>
@@ -49,29 +33,16 @@
           <label for="rol">Rol</label>
           <div class="input-container">
             <i class="fas fa-user-tag input-icon"></i>
-            <select 
-              id="rol" 
-              v-model="selectedRol" 
-              required
-              class="form-select"
-            >
+            <select id="rol" v-model="selectedRol" required class="form-select">
               <option value="">Seleccione un rol</option>
-              <option 
-                v-for="rol in roles" 
-                :key="rol.id" 
-                :value="rol.id"
-              >
+              <option v-for="rol in roles" :key="rol.id" :value="rol.id">
                 {{ rol.nombre }}
               </option>
             </select>
           </div>
         </div>
 
-        <button 
-          type="submit" 
-          class="submit-button" 
-          :disabled="isLoading"
-        >
+        <button type="submit" class="submit-button" :disabled="isLoading">
           <span v-if="!isLoading">Registrarse</span>
           <span v-else class="loading-spinner"></span>
         </button>
@@ -118,7 +89,8 @@ export default {
       try {
         const { data, error: rolesError } = await supabase
           .from('roles')
-          .select('*');
+          .select('*')
+          .neq('nombre', 'Operador');
         if (rolesError) throw rolesError;
         roles.value = data;
       } catch (err) {
@@ -307,7 +279,9 @@ label {
 }
 
 @keyframes spin {
-  to { transform: rotate(360deg); }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .form-footer {

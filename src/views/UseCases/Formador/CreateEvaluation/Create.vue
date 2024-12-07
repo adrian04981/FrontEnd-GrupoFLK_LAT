@@ -3,38 +3,36 @@
     <img src="@/assets/SELLO_FLK.png" alt="Logo FLK" class="logo" />
     <h2>Creación de Evaluación</h2>
 
+    <!-- Selección de curso -->
+    <div class="form-group">
+      <label for="curso">Selecciona el curso</label>
+      <select v-model="cursoSeleccionado" id="curso" required>
+        <option value="" disabled selected>Selecciona un curso</option>
+        <option v-for="curso in cursos" :key="curso.pk_curso" :value="curso.pk_curso">
+          {{ curso.titulo_curso }}
+        </option>
+      </select>
+    </div>
+
+    <!-- Formulario de evaluación -->
     <form @submit.prevent="guardarEvaluacion" class="evaluation-form">
       <div v-for="(pregunta, index) in preguntas" :key="index" class="pregunta-container">
         <div class="form-group">
           <label :for="'pregunta-' + index">Pregunta {{ index + 1 }}</label>
-          <input
-            type="text"
-            v-model="pregunta.enunciado"
-            :id="'pregunta-' + index"
-            placeholder="Escriba el enunciado de la pregunta"
-            required
-          />
+          <input type="text" v-model="pregunta.enunciado" :id="'pregunta-' + index"
+            placeholder="Escriba el enunciado de la pregunta" required />
         </div>
 
         <div class="form-group">
           <label>Opciones:</label>
           <div v-for="i in 4" :key="i">
-            <input
-              type="text"
-              v-model="pregunta.opciones[i - 1]"
-              :placeholder="'Opción ' + i"
-              required
-            />
+            <input type="text" v-model="pregunta.opciones[i - 1]" :placeholder="'Opción ' + i" required />
           </div>
         </div>
 
         <div class="form-group">
           <label :for="'respuestaCorrecta-' + index">Respuesta Correcta</label>
-          <select
-            v-model="pregunta.respuestaCorrecta"
-            :id="'respuestaCorrecta-' + index"
-            required
-          >
+          <select v-model="pregunta.respuestaCorrecta" :id="'respuestaCorrecta-' + index" required>
             <option value="" disabled selected>Seleccione la respuesta correcta</option>
             <option v-for="(opcion, i) in pregunta.opciones" :key="i" :value="i">
               {{ opcion || `Opción ${i + 1}` }}
@@ -44,19 +42,11 @@
       </div>
 
       <div class="button-container">
-        <button 
-          type="button" 
-          @click="agregarPregunta" 
-          :disabled="preguntas.length >= 15"
-          class="editar-button"
-        >
+        <button type="button" @click="agregarPregunta" :disabled="preguntas.length >= 15" class="editar-button">
           Agregar Pregunta ({{ preguntasFaltantes }})
         </button>
-        <button 
-          type="submit" 
-          class="guardar-button"
-          :disabled="!esFormularioValido || !cumpleMinimoPreguntasRequeridas"
-        >
+        <button type="submit" class="guardar-button"
+          :disabled="!esFormularioValido || !cumpleMinimoPreguntasRequeridas">
           Guardar Evaluación
         </button>
       </div>
@@ -72,26 +62,87 @@
     </form>
   </div>
 </template>
-
 <script>
-import { ref, computed } from 'vue';
+import { ref, computed, onMounted } from 'vue';
 import { supabase } from '@/supabase';  // Asegúrate de que este archivo esté configurado correctamente
 
 export default {
   name: 'CreateEvaluation',
   setup() {
+    const cursoSeleccionado = ref(''); // Declaración de cursoSeleccionado
     const preguntas = ref([{
       enunciado: '',
       opciones: ['', '', '', ''],
       respuestaCorrecta: ''
     }]);
+    const cursos = ref([]);
+
+    // Obtener el usuario desde el localStorage
+    const user = JSON.parse(localStorage.getItem('user')); // Asegúrate de que 'user' esté guardado en el localStorage
+    const formadorEmail = user ? user.email : null;  // Extraer el correo del usuario
+
+    // Si no se encuentra el correo del formador, mostrar un error o redirigir
+    if (!formadorEmail) {
+      console.error('No se encontró el correo del formador en el localStorage.');
+      return;
+    }
+
+    // Buscar el formador por correo electrónico
+    const obtenerFormadorPorCorreo = async () => {
+      const { data, error } = await supabase
+        .from('Formador')  // Asegúrate de que esta tabla esté correcta
+        .select('*')
+        .eq('correo', formadorEmail);
+
+      if (error) {
+        console.error('Error al obtener el formador:', error.message);
+        return null;
+      }
+
+      if (data.length === 0) {
+        console.error('No se encontró al formador con ese correo.');
+        return null;
+      }
+      console.log(data);
+
+      return data[0].Pk_docenteteoria; // Devuelve el ID del formador
+    };
+
+    // Obtener los cursos del formador
+    const obtenerCursosDelFormador = async (formadorId) => {
+      const { data, error } = await supabase
+        .from('cursos')  // Asegúrate de que esta tabla esté correcta
+        .select('*')
+        .eq('fk_docentepractico', formadorId); // Usar el ID del formador para filtrar
+
+      if (error) {
+        console.error('Error al obtener los cursos:', error.message);
+        return [];
+      }
+
+      return data;
+    };
+
+    // Función para cargar los cursos asociados al formador
+    const cargarCursos = async () => {
+      const formadorId = await obtenerFormadorPorCorreo();
+
+      if (formadorId) {
+        const cursosFormador = await obtenerCursosDelFormador(formadorId);
+        cursos.value = cursosFormador;  // Asigna los cursos encontrados a la variable 'cursos'
+      }
+    };
+
+    onMounted(() => {
+      cargarCursos();  // Llama a cargar los cursos cuando el componente se monte
+    });
 
     const preguntasFaltantes = computed(() => {
       return 15 - preguntas.value.length;
     });
 
     const todasPreguntasCompletas = computed(() => {
-      return preguntas.value.every(pregunta => 
+      return preguntas.value.every(pregunta =>
         pregunta.enunciado.trim() !== '' &&
         pregunta.opciones.every(opcion => opcion.trim() !== '') &&
         pregunta.respuestaCorrecta !== ''
@@ -121,32 +172,37 @@ export default {
     };
 
     const guardarEvaluacion = async () => {
-      if (!esFormularioValido.value || !cumpleMinimoPreguntasRequeridas.value) {
-        alert('Por favor complete todas las preguntas y asegúrese de tener al menos 15 preguntas.');
+      if (!esFormularioValido.value || !cumpleMinimoPreguntasRequeridas.value || !cursos.value.length) {
+        alert('Por favor complete todas las preguntas, asegúrese de tener al menos 15 preguntas, y seleccione un curso.');
         return;
       }
 
       try {
-        // Verificar los datos antes de enviarlos
-        console.log('Datos a guardar:', JSON.stringify(preguntas.value, null, 2));
+        // Aquí se hace el procesamiento de las preguntas una por una
+        for (const pregunta of preguntas.value) {
+          const preguntaFormateada = {
+            fk_curso: cursoSeleccionado.value,
+            enunciado: pregunta.enunciado,
+            opciones: pregunta.opciones,
+            respuesta_correcta: parseInt(pregunta.respuestaCorrecta),  // Convertir a índice si es necesario
+            fecha_creacion: new Date().toISOString(),
+          };
 
-        // Insertar en la tabla de Supabase con una forma más forzada
-        const { data, error } = await supabase
-          .from('evaluaciones')
-          .insert([{
-            preguntas: preguntas.value,  // El campo 'preguntas' debe ser tipo JSONB
-            fecha_creacion: new Date().toISOString()  // Asegúrate de enviar la fecha en el formato adecuado
-          }]);
+          const { data, error } = await supabase
+            .from('preguntas_teoricas')
+            .insert([preguntaFormateada]);
 
-        // Si hay error, loggeamos más detalles y seguimos
-        if (error) {
-          console.error('Error al guardar:', error);
+          if (error) {
+            console.error('Error al guardar la pregunta:', error.message);
+            alert(`Error al guardar la pregunta: ${error.message}`);
+            return;
+          }
+
+          console.log('Pregunta guardada:', data);
         }
 
-        // Si no hay error, mostramos la respuesta
-        console.log('Evaluación guardada:', data);
         alert('Evaluación guardada exitosamente');
-        
+
         // Limpiar las preguntas después de guardar
         preguntas.value = [{
           enunciado: '',
@@ -154,14 +210,15 @@ export default {
           respuestaCorrecta: ''
         }];
       } catch (error) {
-        // Error de guardado
         console.error('Error inesperado al guardar la evaluación:', error);
         alert(`Error inesperado al guardar la evaluación: ${error.message}`);
       }
     };
 
     return {
+      cursoSeleccionado, // Asegúrate de retornar la variable
       preguntas,
+      cursos,
       preguntasFaltantes,
       esFormularioValido,
       cumpleMinimoPreguntasRequeridas,
@@ -172,6 +229,7 @@ export default {
     };
   }
 };
+
 </script>
 
 <style scoped>

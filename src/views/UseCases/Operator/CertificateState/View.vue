@@ -1,99 +1,68 @@
 <template>
-  <div class="certificados-container">
-    <h1>Listado de Certificados</h1>
+  <!-- Tabla de Certificados -->
+  <div class="certificados-table-container">
+    <h2>Certificados Disponibles</h2>
+    <table class="certificados-table">
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>DNI</th>
+          <th>Nombre del Curso</th>
+          <th>Lugar de Servicio</th>
+          <th>Fecha de Emisión</th>
+          <th>Fecha de Vencimiento</th>
+          <th>Estado</th>
+          <th>Acciones</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr v-for="(certificado, index) in certificados" :key="certificado.Pk_certificado">
+          <td>{{ index + 1 }}</td>
+          <td>{{ certificado.dni }}</td>
+          <td>{{ certificado.nombre_curso }}</td>
+          <td>{{ certificado.lugar_servicio }}</td>
+          <td>{{ formatDate(certificado.fecha_emision_certificado) }}</td>
+          <td>{{ formatDate(certificado.fecha_vencimiento) }}</td>
+          <td>
+            <span class="estado-badge" :class="getEstadoClass(certificado)">
+              {{ getEstadoText(certificado) }}
+            </span>
+          </td>
+          <td>
+            <button class="btn btn-descargar" :title="getMensajeDescarga(certificado)"
+              @click="descargarCertificado(certificado)">
+              Descargar
+            </button>
+          </td>
 
-    <!-- Estado de Evaluaciones -->
-    <div class="evaluaciones-status" v-if="evaluacionesStatus.length > 0">
-      <h2>Estado de Evaluaciones</h2>
-      <div class="status-cards">
-        <div v-for="status in evaluacionesStatus" :key="status.curso_id" class="status-card">
-          <h3>{{ status.nombre_curso }}</h3>
-          <div class="status-details">
-            <div class="status-item" :class="{ 'aprobado': status.teorica_aprobada }">
-              <span class="status-label">Evaluación Teórica:</span>
-              <span class="status-value">{{ status.teorica_aprobada ? '✓ Aprobado' : '✗ Pendiente' }}</span>
-              <span v-if="status.calificacion_teorica" class="status-score">
-                {{ status.calificacion_teorica }}/20
-              </span>
-            </div>
-            <div class="status-item" :class="{ 'aprobado': status.practica_aprobada }">
-              <span class="status-label">Evaluación Práctica:</span>
-              <span class="status-value">{{ status.practica_aprobada ? '✓ Aprobado' : '✗ Pendiente' }}</span>
-              <span v-if="status.calificacion_practica" class="status-score">
-                {{ status.calificacion_practica }}/20
-              </span>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
+        </tr>
+      </tbody>
+    </table>
 
-    <!-- Tabla de Certificados -->
-    <div class="certificados-table-container">
-      <h2>Certificados Disponibles</h2>
-      <table class="certificados-table">
-        <thead>
-          <tr>
-            <th>#</th>
-            <th>DNI</th>
-            <th>Nombre del Curso</th>
-            <th>Lugar de Servicio</th>
-            <th>Fecha de Emisión</th>
-            <th>Fecha de Vencimiento</th>
-            <th>Estado</th>
-            <th>Acciones</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr v-for="(certificado, index) in certificados" :key="certificado.Pk_certificado">
-            <td>{{ index + 1 }}</td>
-            <td>{{ certificado.dni }}</td>
-            <td>{{ certificado.nombre_curso }}</td>
-            <td>{{ certificado.lugar_servicio }}</td>
-            <td>{{ formatDate(certificado.fecha_emision_certificado) }}</td>
-            <td>{{ formatDate(certificado.fecha_vencimiento) }}</td>
-            <td>
-              <span class="estado-badge" :class="getEstadoClass(certificado)">
-                {{ getEstadoText(certificado) }}
-              </span>
-            </td>
-            <td>
-              <button 
-                class="btn btn-descargar" 
-                @click="descargarCertificado(certificado)"
-                :disabled="!puedeDescargarCertificado(certificado)"
-                :title="getMensajeDescarga(certificado)"
-              >
-                <i class="fas fa-download"></i> Descargar
-              </button>
-            </td>
-          </tr>
-        </tbody>
-      </table>
-
-      <!-- Mensaje cuando no hay certificados -->
-      <div v-if="certificados.length === 0" class="no-certificados">
-        <p>No hay certificados disponibles en este momento.</p>
-      </div>
+    <!-- Mensaje cuando no hay certificados -->
+    <div v-if="certificados.length === 0" class="no-certificados">
+      <p>No hay certificados disponibles en este momento.</p>
     </div>
   </div>
+
 </template>
 
 <script>
 import { ref, onMounted } from "vue";
 import { supabase } from "@/supabase";
+import { jsPDF } from 'jspdf';
 
 export default {
   name: "Certificados",
   setup() {
     const certificados = ref([]);
     const evaluacionesStatus = ref([]);
-
+    const operadores = ref([]);
     const cargarCertificados = async () => {
       try {
         const { data, error } = await supabase
           .from("Certificado")
-          .select("Pk_certificado, dni, nombre_curso, lugar_servicio, fecha_emision_certificado, fecha_vencimiento, documento_adjunto, fk_curso");
+          .select("*");
 
         if (error) throw error;
 
@@ -102,6 +71,78 @@ export default {
       } catch (error) {
         console.error("Error al cargar los certificados:", error.message);
       }
+    };
+
+    const descargarCertificado = async (certificado) => {
+      
+      const doc = new jsPDF({
+        orientation: 'landscape',
+        unit: 'mm',
+        format: 'a4'
+      });
+
+      // Añadir imagen de fondo
+      const backgroundImg = '/certificado-background.jpg'; // Asegúrate de tener esta imagen
+      doc.addImage(backgroundImg, 'JPEG', 0, 0, 297, 210);
+
+      // Añadir logo
+      const logoImg = '/entech-logo.png'; // Asegúrate de tener esta imagen
+      doc.addImage(logoImg, 'PNG', 20, 20, 60, 30);
+
+      // Configurar fuentes
+      doc.setFont('times', 'normal');
+
+      // Título "Certificado"
+      doc.setFontSize(48);
+      doc.setTextColor(0, 48, 135); // Azul corporativo
+      doc.text('Certificado', 148, 60, { align: 'center' });
+
+      // Texto "Otorgado a:"
+      doc.setFontSize(16);
+      doc.setTextColor(0, 0, 0);
+      doc.text('Otorgado a:', 148, 80, { align: 'center' });
+
+      // Nombre del operador
+      doc.setFontSize(24);
+      doc.setFont('times', 'bold');
+      doc.text(operador.nombre, 148, 90, { align: 'center' });
+
+      // Detalles de la certificación
+      doc.setFontSize(12);
+      doc.setFont('times', 'normal');
+      const certificacionTexto = `
+      Identificado con DNI ${operador.dni}, como ${curso.titulo_curso}
+
+      La Empresa EQUIPMENT TECHNICAL SERVICES DEL PERÚ SAC, otorga el presente CERTIFICADO,
+      por haber aprobado el curso Teórico-Práctico, desarrollado los días ${formatFecha(evaluacion.fecha_creacion)}.
+
+      La certificación se rige bajo lineamientos de la Ley N° 29783 (SST) y su Modif. 30222 – DS. 005-2012-TR.
+      Y alineados a las Normas Internacionales ANSI/ASME B56.1 - 2012.
+
+      Tiempo de capacitación 40 horas efectivas.
+    `;
+
+      doc.text(certificacionTexto, 148, 110, {
+        align: 'center',
+        maxWidth: 200
+      });
+
+      // Fecha
+      const fecha = new Date().toLocaleDateString('es-PE', {
+        day: '2-digit',
+        month: 'long',
+        year: 'numeric'
+      });
+      doc.text(`Lima, ${fecha}`, 200, 170);
+
+      // Firma y sello
+      doc.addImage('/firma.png', 'PNG', 120, 150, 50, 30); // Asegúrate de tener esta imagen
+      doc.addImage('/sello.png', 'PNG', 180, 150, 30, 30); // Asegúrate de tener esta imagen
+
+      // Guardar el PDF
+      const pdfName = `certificado_${operador.nombre}_${curso.titulo_curso}.pdf`;
+      doc.save(pdfName);
+
     };
 
     const cargarEstadoEvaluaciones = async () => {
@@ -163,24 +204,7 @@ export default {
       return "Descargar certificado";
     };
 
-    const descargarCertificado = async (certificado) => {
-      if (!puedeDescargarCertificado(certificado)) {
-        alert("No cumple con los requisitos para descargar el certificado");
-        return;
-      }
 
-      try {
-        const { publicURL, error } = supabase.storage
-          .from("Certificado")
-          .getPublicUrl(certificado.documento_adjunto);
-
-        if (error) throw error;
-        window.open(publicURL, "_blank");
-      } catch (error) {
-        console.error("Error al descargar el certificado:", error.message);
-        alert("Error al descargar el certificado");
-      }
-    };
 
     const formatDate = (date) => {
       if (!date) return "No especificado";
@@ -188,14 +212,19 @@ export default {
     };
 
     const getEstadoClass = (certificado) => {
-      if (puedeDescargarCertificado(certificado)) return 'disponible';
-      return 'pendiente';
+      const status = certificado.Estado;
+      return status === true ? 'disponible' : 'pendiente';
+    };
+    const getEstadoText = (certificado) => {
+      const status = certificado.Estado;
+
+      if (status === true) {
+        return 'Puedes descargarlo';
+      } else {
+        return 'Pendiente de Aprobación';
+      }
     };
 
-    const getEstadoText = (certificado) => {
-      if (puedeDescargarCertificado(certificado)) return 'Disponible';
-      return 'Pendiente de Aprobación';
-    };
 
     onMounted(() => {
       cargarCertificados();
@@ -204,12 +233,13 @@ export default {
     return {
       certificados,
       evaluacionesStatus,
-      descargarCertificado,
       formatDate,
       puedeDescargarCertificado,
       getMensajeDescarga,
       getEstadoClass,
-      getEstadoText
+      getEstadoText,
+      descargarCertificado // <-- Add this lin
+
     };
   },
 };
@@ -222,7 +252,8 @@ export default {
   padding: 20px;
 }
 
-h1, h2 {
+h1,
+h2 {
   text-align: center;
   margin-bottom: 20px;
 }
@@ -400,6 +431,3 @@ h2 {
   }
 }
 </style>
-
-</boltArtifact>
-

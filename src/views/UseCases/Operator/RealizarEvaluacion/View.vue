@@ -1,20 +1,26 @@
 <template>
   <div class="form-container">
+    <!-- Lista de Cursos -->
+    <div v-if="!mostrarEvaluacion">
+      <h1>Mis Cursos</h1>
+      <div class="carta-curso" v-for="(curso, index) in cursos" :key="index">
+        <h2>{{ curso.titulo_curso }}</h2>
+        <button @click="iniciarEvaluacion(curso)" class="iniciar-evaluacion">
+          Iniciar Evaluación
+        </button>
+      </div>
+    </div>
+
     <!-- Examen Teórico -->
-    <div v-if="!mostrarResultados">
-      <h1>Examen Teórico</h1>
+    <div v-if="mostrarEvaluacion">
+      <h1>Examen Teórico - {{ cursoSeleccionado.titulo_curso }}</h1>
       <form @submit.prevent="submitAnswers" class="form">
         <div v-for="(pregunta, index) in preguntas" :key="pregunta.id" class="pregunta">
           <h3>{{ index + 1 }}. {{ pregunta.enunciado }}</h3>
           <div v-for="(opcion, idx) in pregunta.opciones" :key="idx" class="opcion">
             <label>
-              <input
-                type="radio"
-                :name="'pregunta-' + pregunta.id"
-                :value="opcion"
-                v-model="respuestas[pregunta.id]"
-                required
-              />
+              <input type="radio" :name="'pregunta-' + pregunta.id" :value="opcion" v-model="respuestas[pregunta.id]"
+                required />
               {{ opcion }}
             </label>
           </div>
@@ -26,8 +32,6 @@
     <!-- Resultados del Examen -->
     <div v-if="mostrarResultados" class="vista-resultados">
       <h1>Resultados del Examen</h1>
-      
-      <!-- Resumen de Resultados -->
       <div class="resultados-summary">
         <div class="score-card" :class="getScoreClass(puntajeTotal, preguntas.length)">
           <h2>Puntaje Final</h2>
@@ -39,7 +43,6 @@
             {{ puntajeTotal >= (preguntas.length * 0.7) ? '¡Aprobado!' : 'No Aprobado' }}
           </div>
         </div>
-        
         <div class="stats-container">
           <div class="stat-item correct">
             <span class="stat-value">{{ puntajeTotal }}</span>
@@ -52,29 +55,27 @@
         </div>
       </div>
 
-      <!-- Tabla Detallada de Respuestas -->
+      <div v-if="puntajeTotal < 14" class="mensaje-practica">
+        <p><strong>Lo siento</strong>, no has alcanzado el puntaje mínimo para realizar la evaluación práctica. Sigue
+          intentándolo.</p>
+      </div>
       <div class="resultados-detalle">
         <h2>Detalle de Respuestas</h2>
         <div v-for="(resultado, index) in resultados" :key="resultado.id" class="resultado-item">
           <div class="resultado-header">
             <span class="pregunta-numero">Pregunta {{ index + 1 }}</span>
-            <span 
-              class="resultado-badge"
-              :class="resultado.correcta === resultado.respuesta ? 'correcto' : 'incorrecto'"
-            >
+            <span class="resultado-badge"
+              :class="resultado.correcta === resultado.respuesta ? 'correcto' : 'incorrecto'">
               {{ resultado.correcta === resultado.respuesta ? '✓ Correcto' : '✗ Incorrecto' }}
             </span>
           </div>
-          
           <div class="resultado-content">
             <p class="pregunta-texto">{{ resultado.enunciado }}</p>
             <div class="respuestas-container">
               <div class="respuesta-item">
                 <span class="respuesta-label">Tu respuesta:</span>
-                <span 
-                  class="respuesta-valor"
-                  :class="resultado.correcta === resultado.respuesta ? 'texto-correcto' : 'texto-incorrecto'"
-                >
+                <span class="respuesta-valor"
+                  :class="resultado.correcta === resultado.respuesta ? 'texto-correcto' : 'texto-incorrecto'">
                   {{ resultado.respuesta }}
                 </span>
               </div>
@@ -86,7 +87,15 @@
           </div>
         </div>
       </div>
+
+      <!-- Mensaje de evaluación práctica -->
+      <div v-if="puntajeTotal >= 14" class="mensaje-practica">
+        <p><strong>¡Felicidades!</strong> Has aprobado la evaluación teórica con un puntaje suficiente. Eres apto para
+          realizar la evaluación práctica. ¡Mucha suerte!</p>
+      </div>
+
     </div>
+
   </div>
 </template>
 
@@ -99,12 +108,73 @@ export default {
       preguntas: [],
       respuestas: {},
       mostrarResultados: false,
+      mostrarEvaluacion: false,
       resultados: [],
       puntajeTotal: 0,
+      cursos: [], // Array para almacenar todos los cursos
+      cursoSeleccionado: null, // Curso seleccionado para iniciar evaluación
+      operador: null,
     };
   },
   async created() {
     try {
+      // Obtener la sesión del usuario logueado
+      const { data: { session }, error: authError } = await supabase.auth.getSession();
+      if (authError || !session) {
+        console.error('Usuario no autenticado');
+        return;
+      }
+
+      const usuarioEmail = session.user.email;
+
+      const response = await supabase
+        .from('Operador')
+        .select('*')
+        .eq('correo_electronico', usuarioEmail)
+
+      if (!response) {
+        console.error('Error al obtener el operador:', response);
+        return;
+      }
+
+      // Obtener la matrícula de los cursos en los que está matriculado el operador
+      const { data: matriculas, error: matriculasError } = await supabase
+        .from('matriculas')
+        .select('fk_curso')
+        .eq('fk_operador', response.data[0].Pk_Alumno);
+
+
+      this.operador = response.data[0].Pk_Alumno
+      if (matriculasError) {
+        console.error('Error al obtener las matrículas:', matriculasError.message);
+        return;
+      }
+
+      if (matriculas.length === 0) {
+        console.error('El usuario no está matriculado en ningún curso');
+        return;
+      }
+
+      // Obtener los cursos de las matrículas
+      const cursosPromises = matriculas.map(async (matricula) => {
+        const { data: cursoData, error: cursoError } = await supabase
+          .from('cursos')
+          .select('*')
+          .eq('pk_curso', matricula.fk_curso)
+          .single();
+
+        if (cursoError) {
+          console.error('Error al obtener el curso:', cursoError.message);
+          return null;
+        }
+
+        return cursoData;
+      });
+
+      const cursosData = await Promise.all(cursosPromises);
+      this.cursos = cursosData.filter(curso => curso !== null); // Filtrar nulls si hubo algún error en la consulta
+
+      // Obtener las preguntas del curso
       const { data, error } = await supabase
         .from('preguntas_teoricas')
         .select('id, enunciado, opciones, respuesta_correcta');
@@ -123,10 +193,26 @@ export default {
     }
   },
   methods: {
+    iniciarEvaluacion(curso) {
+      this.cursoSeleccionado = curso;
+      this.mostrarEvaluacion = true;
+    },
     async submitAnswers() {
+      // Validar que todas las preguntas tengan respuesta
+      const todasRespondidas = this.preguntas.every(pregunta =>
+        this.respuestas[pregunta.id] !== undefined
+      );
+
+      if (!todasRespondidas) {
+        alert('Por favor, responde todas las preguntas antes de enviar.');
+        return;
+      }
+
       const respuestasArray = Object.keys(this.respuestas).map((id) => ({
         pregunta_id: parseInt(id),
         respuesta: this.respuestas[id],
+        curso_id: this.cursoSeleccionado.pk_curso,
+        operador_id: this.operador,
         fecha_envio: new Date().toISOString(),
       }));
 
@@ -139,20 +225,26 @@ export default {
           return;
         }
 
-        // Procesar resultados
-        this.resultados = this.preguntas.map((pregunta) => ({
-          id: pregunta.id,
-          enunciado: pregunta.enunciado,
-          correcta: pregunta.respuesta_correcta,
-          respuesta: this.respuestas[pregunta.id] || 'No respondida',
-        }));
+        // Procesar resultados con validación más precisa
+        this.resultados = this.preguntas.map((pregunta) => {
+          const respuestaUsuario = this.respuestas[pregunta.id];
+          const esCorrecta = respuestaUsuario === pregunta.respuesta_correcta;
 
-        // Calcular puntaje
-        this.puntajeTotal = this.resultados.filter(
-          (resultado) => resultado.correcta === resultado.respuesta
-        ).length;
+          return {
+            id: pregunta.id,
+            enunciado: pregunta.enunciado,
+            correcta: pregunta.respuesta_correcta,
+            respuesta: respuestaUsuario || 'No respondida',
+            esCorrecta: esCorrecta
+          };
+        });
 
+        // Calcular puntaje total basado en respuestas correctas
+        this.puntajeTotal = this.resultados.filter(resultado => resultado.esCorrecta).length;
+
+        // Mostrar vista de resultados
         this.mostrarResultados = true;
+        this.mostrarEvaluacion = false;
       } catch (error) {
         console.error('Error general al enviar:', error);
         alert('Error inesperado al enviar las respuestas.');
@@ -168,13 +260,55 @@ export default {
 </script>
 
 <style scoped>
-.form-container {
-  max-width: 900px;
-  margin: 0 auto;
+.carta-curso {
   padding: 20px;
-  background-color: #f9f9f9;
+  background-color: #fff;
   border-radius: 8px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  text-align: center;
+}
+
+.carta-curso h2 {
+  font-size: 2rem;
+  margin-bottom: 10px;
+}
+
+.mensaje-practica {
+  margin-top: 20px;
+  padding: 15px;
+  border-radius: 8px;
+  background-color: #f5f5f5;
+  font-size: 1.1rem;
+  color: #333;
+}
+
+.mensaje-practica strong {
+  font-weight: bold;
+}
+
+.mensaje-practica p {
+  margin: 0;
+}
+
+.carta-curso p {
+  font-size: 1.1rem;
+  color: #555;
+  margin-bottom: 20px;
+}
+
+.iniciar-evaluacion {
+  background-color: #4CAF50;
+  color: white;
+  font-size: 1.1rem;
+  padding: 10px 20px;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  transition: background-color 0.3s;
+}
+
+.iniciar-evaluacion:hover {
+  background-color: #45a049;
 }
 
 /* Estilos existentes */
@@ -209,7 +343,6 @@ h1 {
   color: #555;
 }
 
-/* Nuevos estilos para la vista de resultados */
 .resultados-summary {
   display: flex;
   gap: 20px;
@@ -359,40 +492,31 @@ h1 {
 .respuesta-valor {
   padding: 5px 10px;
   border-radius: 4px;
-  font-weight: 500;
+  font-weight: 600;
 }
 
 .texto-correcto {
+  background-color: #e8f5e9;
   color: #2e7d32;
 }
 
 .texto-incorrecto {
+  background-color: #ffebee;
   color: #c62828;
 }
 
-/* Estilos responsivos */
-@media (max-width: 600px) {
-  .form-container {
-    padding: 15px;
-  }
+.submit-button {
+  background-color: #4CAF50;
+  color: white;
+  font-size: 1.2rem;
+  padding: 15px;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background-color 0.3s;
+}
 
-  .resultados-summary {
-    flex-direction: column;
-  }
-
-  .stats-container {
-    flex-direction: row;
-  }
-
-  .resultado-header {
-    flex-direction: column;
-    gap: 10px;
-    align-items: flex-start;
-  }
-
-  .respuesta-item {
-    flex-direction: column;
-    align-items: flex-start;
-  }
+.submit-button:hover {
+  background-color: #45a049;
 }
 </style>
