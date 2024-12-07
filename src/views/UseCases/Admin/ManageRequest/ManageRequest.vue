@@ -311,35 +311,50 @@ export default {
 
         if (error) throw error;
 
-        // Buscar si el operador ya existe por su código (Pk_Alumno)
+        // Buscar si el operador ya existe por correo electrónico
         const { data: operadores, error: operadoresError } = await supabase
           .from("Operador")
           .select("Pk_Alumno")
-          .eq("correo_electronico", solicitud.correo_electronico); // Aún se utiliza el correo para identificar, pero obtendremos el Pk_Alumno
+          .eq("correo_electronico", solicitud.correo_electronico)
+          .single(); // Asegúrate de que se devuelvan solo los datos de un operador, si existe
 
         if (operadoresError) throw operadoresError;
 
         // Si no existe, crear el operador
-        let operadorId = operadores.length > 0 ? operadores[0].Pk_Alumno : null;
+        let operadorId = operadores ? operadores.Pk_Alumno : null;
         if (!operadorId) {
           const operadorCreado = await crearOperador(solicitud);
           if (!operadorCreado) {
             throw new Error("No se pudo crear el operador.");
           }
-          // Obtener el ID del operador creado
+
+          // Obtener el ID del operador recién creado
           const { data: nuevoOperador } = await supabase
             .from("Operador")
             .select("Pk_Alumno")
             .eq("correo_electronico", solicitud.correo_electronico)
             .single();
+
           operadorId = nuevoOperador ? nuevoOperador.Pk_Alumno : null;
         }
 
-        // Crear la matrícula con el código del operador (Pk_Alumno)
-        const matriculaCreada = await crearMatricula(solicitud, operadorId);
-        if (!matriculaCreada) {
-          throw new Error("No se pudo crear la matrícula.");
-        }
+        // Crear la matrícula para el operador
+        const { error: matriculaError } = await supabase
+          .from("matriculas")
+          .insert([
+            {
+              fk_operador: operadorId, // Usamos el ID del operador (nuevo o existente)
+              fk_curso: solicitud.fk_curso, // Asignar el curso desde la solicitud
+              fecha_matricula: new Date(), // Fecha actual de la matrícula
+              estado:true,
+              fk_sesion: 1 // Estado inicial de la matrícula
+
+            },
+          ]);
+
+        if (matriculaError) throw matriculaError;
+
+        console.log("Matrícula creada con éxito.");
 
         // Construir el mensaje de correo
         const saludo = `Hola ${solicitud.nombre_completo},\n\n`;
@@ -393,26 +408,30 @@ export default {
       }
     }
 
-    // Función para crear la matrícula con el código del operador (Pk_Alumno)
-    async function crearMatricula(solicitud, operadorId) {
+    async function crearOperador(solicitud) {
       try {
+        // Crear el operador en la base de datos
         const { error } = await supabase
-          .from("matriculas")
-          .insert([{
-            fk_operador: operadorId, // Usar el id del operador (Pk_Alumno)
-            fk_curso: solicitud.fk_curso, // Asignar el curso desde la solicitud
-            fecha_matricula: new Date(), // Fecha actual de la matrícula
-            fk_sesion: 1,
-            estado: true
-          }]);
+          .from("Operador")
+          .insert([
+            {
+              nombre: solicitud.nombre_completo,
+              apellidos: solicitud.apellidos_completo, // Asegúrate de tener el apellido correcto
+              fecha_nacimiento: solicitud.fecha_nacimiento,
+              nro_telefonico: solicitud.nro_telefonico,
+              correo_electronico: solicitud.correo_electronico, // El correo electrónico como identificador
+              dni: solicitud.dni, // Ajusta según el campo necesario
+              Estado: true, // El operador se marca como activo
+            },
+          ]);
 
         if (error) throw error;
 
-        console.log("Matrícula creada con éxito.");
+        console.log("Operador creado con éxito.");
         return true;
       } catch (error) {
-        console.error("Error al crear la matrícula:", error.message);
-        alert("Ocurrió un error al crear la matrícula.");
+        console.error("Error al crear operador:", error.message);
+        alert("Ocurrió un error al crear el operador.");
         return false;
       }
     }
