@@ -8,6 +8,7 @@
             <th>Nombre Completo</th>
             <th>Usuario</th>
             <th>Contraseña</th>
+            <th>Documento</th>
             <th>Opciones</th>
           </tr>
         </thead>
@@ -16,6 +17,7 @@
             <td>{{ solicitud.nombre_completo || "Nulo" }}</td>
             <td>{{ solicitud.usuario || "Nulo" }}</td>
             <td>{{ solicitud.contrasena || "Nulo" }}</td>
+            <td>{{ obtenerDocumento(solicitud.FK_Operador) || "Nulo" }}</td>
             <td>
               <button @click="enviarCorreo(solicitud)" class="btn-generar">
                 Enviar Correo
@@ -65,65 +67,109 @@ export default {
     },
     async fetchOperadores() {
       try {
+        // Traemos los operadores que tienen correo
         const { data, error } = await supabase
-          .from("operador")
-          .select("correo_electronico, nro_documento, Pk_Alumno");
+          .from("Operador")
+          .select("correo_electronico, Pk_Alumno");
 
         if (error) throw error;
 
-        console.log("Operadores cargados:", data);
+        console.log("o cargados:", data);
         this.operadores = data;
       } catch (error) {
         console.error("Error al cargar operadores:", error.message);
       }
     },
-
     obtenerDocumento(fkOperador) {
       const operador = this.operadores.find(
         (op) => op.Pk_Alumno === fkOperador
       );
       return operador ? operador.nro_documento : "Nulo";
     },
-
     existeOperador(correo) {
       return this.operadores.some((op) => op.correo_electronico === correo);
     },
-
- 
-    },
     async enviarCorreo(solicitud) {
       try {
-        // Verificamos si el operador existe
-        if (!this.existeOperador(solicitud.usuario)) {
-          alert("Operador no encontrado. Generando usuario y contraseña.");
-          // Crear el operador antes de enviar el correo
-          const operadorCreado = await this.crearOperador(solicitud);
-          if (!operadorCreado) {
-            alert("No se pudo crear el operador. No se enviará el correo.");
-            return;
-          }
+        // Buscar el operador que coincide con el correo de la solicitud
+        const { data: operadores, error: operadorError } = await supabase
+          .from("Operador")
+          .select("*")
+          .eq("correo_electronico", solicitud.correo_electronico)
+          .single(); // Usar .single() para obtener un solo registro
+
+        if (operadorError) throw operadorError;
+
+        if (!operadores) {
+          alert("No se encontró un operador con este correo.");
+          return;
         }
 
-        // Enviar el correo si el operador ya existe o fue creado correctamente
+        const { data: credenciales, error: credError } = await supabase
+          .from("credenciales_alumnos")
+          .select("*")
+          .eq("Pk_Alumno", operadores.Pk_Alumno);
+
+        if (credError) throw credError;
+
+        if (credenciales.length > 0) {
+          alert("Las credenciales ya existen para este operador.");
+          return;
+        }
+
+        // Generar una nueva contraseña
+        const nuevaContraseña = this.generarContraseña();
+
+
+        let id = operadores.Pk_Alumno;
+        // Crear nuevas credenciales
+        const { data: nuevasCredenciales, error: insertError } = await supabase
+          .from("credenciales_alumnos")
+          .insert([
+            {
+              FK_Operador: id,
+              usuario: solicitud.usuario,
+              contrasena: nuevaContraseña,
+            },
+          ]);
+
+        if (insertError) throw insertError;
+
+
+        // Enviar correo con las nuevas credenciales
         const { error: emailError } = await supabase.rpc("schema_name.send_email", {
           email: solicitud.usuario,
-          subject: "Solicitud Aceptada",
+          subject: "Solicitud Aceptada - Credenciales",
           message: `
-            <h1>Solicitud Aceptada</h1>
-            <p>Estimado usuario, tu solicitud ha sido aceptada:</p>
-            <p><strong>Usuario:</strong> ${solicitud.usuario}</p>
-            <p><strong>Contraseña:</strong> ${solicitud.contrasena}</p>
-            <p>Por favor, utiliza estas credenciales para acceder a tu capacitación.</p>
-          `,
+        <h1>Solicitud Aceptada</h1>
+        <p>Estimado usuario, tu solicitud ha sido aceptada:</p>
+        <p><strong>Usuario:</strong> ${solicitud.usuario}</p>
+        <p><strong>Contraseña:</strong> ${nuevaContraseña}</p>
+        <p>Por favor, utiliza estas credenciales para acceder a tu capacitación.</p>
+      `,
         });
 
         if (emailError) throw emailError;
 
-        alert("Correo enviado correctamente.");
+        alert("Credenciales generadas y correo enviado correctamente.");
+
       } catch (error) {
-        console.error("Error al enviar correo:", error.message);
-        alert("Ocurrió un error al enviar el correo.");
+        console.error("Error al procesar la solicitud:", error.message);
+        alert("Ocurrió un error al procesar la solicitud.");
       }
+    },
+
+    // Función para generar contraseña (debes implementarla)
+    generarContraseña() {
+      // Implementa aquí la lógica para generar una contraseña segura
+      // Por ejemplo:
+      const length = 10;
+      const charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()";
+      let password = "";
+      for (let i = 0, n = charset.length; i < length; ++i) {
+        password += charset.charAt(Math.floor(Math.random() * n));
+      }
+      return password;
     },
   },
 };
