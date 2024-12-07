@@ -38,6 +38,7 @@
 <script>
 import { ref, onMounted } from "vue";
 import { supabase } from "@/supabase";
+import { Calendar } from "@fullcalendar/core";
 
 export default {
   name: "SessionsList",

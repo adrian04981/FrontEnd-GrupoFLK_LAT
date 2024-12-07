@@ -25,7 +25,7 @@
       <div class="form-group">
         <label for="direccion_session_virtual">Dirección Sesión Virtual</label>
         <input id="direccion_session_virtual" type="url" v-model="nuevaSesion.direccion_session_virtual"
-          placeholder="https://enlace-sesion.com" />
+          placeholder="https://enlace-sesion.com" :disabled="nuevaSesion.fk_modo_curso === 'presencial'" />
       </div>
 
       <div class="form-group">
@@ -47,7 +47,6 @@
     </form>
   </div>
 </template>
-
 <script>
 import { ref, onMounted } from "vue";
 import { supabase } from "@/supabase";
@@ -95,10 +94,10 @@ export default {
     };
 
     const fetchSesionConDocente = async () => {
-  try {
-    const { data, error } = await supabase
-      .from("sesiones_programadas")
-      .select(`
+      try {
+        const { data, error } = await supabase
+          .from("sesiones_programadas")
+          .select(`
         *,
         curso:fk_curso (
           titulo_curso,
@@ -109,13 +108,13 @@ export default {
         )
       `);
 
-    if (error) throw error;
+        if (error) throw error;
 
-    console.log(data);
-  } catch (error) {
-    console.error("Error al obtener la sesión:", error.message);
-  }
-};
+        console.log(data);
+      } catch (error) {
+        console.error("Error al obtener la sesión:", error.message);
+      }
+    };
 
 
     const programarSesion = async () => {

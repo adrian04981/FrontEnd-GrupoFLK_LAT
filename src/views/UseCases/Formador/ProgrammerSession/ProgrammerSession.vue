@@ -14,20 +14,19 @@
 
       <div class="form-group">
         <label for="fk_modo_curso">Modo del Curso</label>
-
-        <input  type="text"    required />
+        <select id="fk_modo_curso" v-model="nuevaSesion.fk_modo_curso" required>
+          <option value="" disabled>Seleccione un modo</option>
+          <option v-for="modo in modos" :key="modo.Pk_modocurso" :value="modo.Pk_modocurso">
+            {{ modo.nombre_modo }}
+          </option>
+        </select>
       </div>
-
-     
 
       <div class="form-group">
         <label for="direccion_session_virtual">Dirección Sesión Virtual</label>
-        <input
-          id="direccion_session_virtual"
-          type="url"
-          v-model="nuevaSesion.direccion_session_virtual"
+        <input id="direccion_session_virtual" type="url" v-model="nuevaSesion.direccion_session_virtual"
           placeholder="https://enlace-sesion.com"
-        />
+          :disabled="nuevaSesion.fk_modo_curso && modos.find(modo => modo.Pk_modocurso === nuevaSesion.fk_modo_curso).nombre_modo === 'Presencial'" />
       </div>
 
       <div class="form-group">
@@ -49,6 +48,7 @@
     </form>
   </div>
 </template>
+
 
 <script>
 import { ref, onMounted } from "vue";
@@ -75,22 +75,54 @@ export default {
     };
 
     const fetchModos = async () => {
-      const { data, error } = await supabase.from("modos_curso").select("pk_modo_curso, nombre_modo");
-      if (error) console.error("Error al obtener los modos:", error.message);
-      else modos.value = data;
-    };
-
-    const programarSesion = async () => {
       try {
-        const { error } = await supabase.from("sesiones_programadas").insert(nuevaSesion.value);
+        const { data, error } = await supabase
+          .from("Modo_Curso")
+          .select("Pk_modocurso, nombre_modo");
+
         if (error) throw error;
-        alert("Sesión programada correctamente.");
-        window.location.href = "/";
-      } catch (err) {
-        console.error("Error al programar sesión:", err.message);
+        modos.value = data || [];
+      } catch (error) {
+        console.error("Error al cargar los modos:", error.message);
       }
     };
+    const programarSesion = async () => {
+      try {
+        // Recuperamos el ID del usuario desde localStorage
+        const user = JSON.parse(localStorage.getItem('user'));
 
+        // Verificamos si el ID del usuario existe
+        if (!user || !user.id) {
+          alert("Usuario no encontrado.");
+          return;
+        }
+
+        // Usamos el ID del usuario como autor y último autor
+        const autor = user.id;
+        const ultimoAutor = user.id;
+
+        const { data, error } = await supabase
+          .from("sesiones_programadas")
+          .insert([
+            {
+              fk_curso: nuevaSesion.value.fk_curso,
+              fk_modo_curso: nuevaSesion.value.fk_modo_curso,
+              direccion_session_virtual: nuevaSesion.value.direccion_session_virtual,
+              fecha_session: nuevaSesion.value.fecha_session,
+              hora_inicio: nuevaSesion.value.hora_inicio,
+              hora_fin: nuevaSesion.value.hora_fin,
+              autor: autor,  // Asignamos el autor
+              ultimo_autor: ultimoAutor,  // Asignamos el último autor
+            },
+          ]);
+
+        if (error) throw error;
+
+        alert("Sesión programada correctamente.");
+      } catch (error) {
+        console.error("Error al programar la sesión:", error.message);
+      }
+    };
     onMounted(() => {
       fetchCursos();
       fetchModos();
