@@ -2,12 +2,15 @@
   <div class="container">
     <h1 class="page-title">Gestión de Solicitudes de Capacitación</h1>
 
-    <!-- Controles superiores -->
+    <!-- Tabla de solicitudes generales -->
+
     <div class="controls-container">
       <div class="pagination-controls">
         <label for="registrosPorPagina">Mostrar</label>
-        <select v-model="registrosPorPagina" id="registrosPorPagina" class="custom-select">
-          <option v-for="num in [5, 10, 20]" :key="num" :value="num">{{ num }}</option>
+        <select v-model="registrosPorPagina" id="registrosPorPagina">
+          <option v-for="num in [5, 10, 20]" :key="num" :value="num">
+            {{ num }}
+          </option>
         </select>
         <span>registros</span>
       </div>
@@ -16,13 +19,11 @@
           type="text"
           v-model="searchQuery"
           placeholder="Buscar por nombre del curso"
-          class="custom-input"
+          class="search-input"
         />
       </div>
     </div>
-
-    <!-- Tabla -->
-    <table class="styled-table">
+    <table class="solicitudes-table">
       <thead>
         <tr>
           <th>DNI</th>
@@ -34,38 +35,50 @@
         </tr>
       </thead>
       <tbody>
-        <tr v-for="solicitud in solicitudesPaginadas" :key="solicitud.id_solicitud">
+        <tr
+          v-for="solicitud in solicitudesPaginadas"
+          :key="solicitud.id_solicitud"
+        >
           <td>{{ solicitud.dni }}</td>
           <td>{{ solicitud.nombre_completo }}</td>
           <td>{{ getNombreCurso(solicitud.fk_curso) }}</td>
           <td>{{ formatFecha(solicitud.fecha_solicitud) }}</td>
-          <td>{{ solicitud.estado || "Sin asignar" }}</td>
+          <td>{{ solicitud.estado_solicitud || "Sin asignar" }}</td>
           <td>
-            <button @click="viewSolicitud(solicitud)" class="btn btn-primary">Ver</button>
-            <button @click="gestionarSolicitud(solicitud, 'aceptado')" class="btn btn-success">Aceptar</button>
-            <button @click="abrirModalRechazo(solicitud)" class="btn btn-danger">Rechazar</button>
+            <button @click="viewSolicitud(solicitud)" class="view-btn">
+              Ver
+            </button>
+            <button
+              @click="gestionarSolicitud(solicitud, 'aceptado')"
+              class="view-btn"
+            >
+              Aceptar
+            </button>
+            <button @click="abrirModalRechazo(solicitud)" class="view-btn">
+              Rechazar
+            </button>
           </td>
         </tr>
       </tbody>
     </table>
 
-
-    <!-- Controles de paginación -->
-    <div class="pagination-container">
-      <span
-        >Mostrando
-        {{ paginaActual * registrosPorPagina - registrosPorPagina + 1 }} a
-        {{ Math.min(paginaActual * registrosPorPagina, solicitudes.length) }} de
-        {{ solicitudes.length }} registros</span
-      >
-      <button @click="paginaActual = 1" :disabled="paginaActual === 1" class="btn btn-light">
-        <i class="fas fa-angle-double-left"></i>
+    <!-- Paginación (nueva) -->
+    <div class="pagination">
+      <span>
+        Mostrando {{ (paginaActual - 1) * registrosPorPagina + 1 }} a
+        {{
+          Math.min(
+            paginaActual * registrosPorPagina,
+            solicitudesFiltradas.length
+          )
+        }}
+        de {{ solicitudesFiltradas.length }} registros
+      </span>
+      <button @click="irPrimeraPagina" :disabled="paginaActual === 1">
+        Primero
       </button>
-      <!-- <button @click="paginaActual--" :disabled="paginaActual === 1">
+      <button @click="irPaginaAnterior" :disabled="paginaActual === 1">
         Anterior
-      </button> -->
-      <button @click="paginaActual++" :disabled="paginaActual >= totalPaginas" class="btn btn-light">
-        <i class="fas fa-angle-left"></i>
       </button>
       <input
         type="number"
@@ -73,451 +86,494 @@
         min="1"
         :max="numeroPaginas"
         @change="validarPagina"
-        class="pagination-input"
+        class="pagina-input"
       />
-      <!-- <button
-        @click="paginaActual = totalPaginas"
-        :disabled="paginaActual >= totalPaginas"
+      <button
+        @click="irPaginaSiguiente"
+        :disabled="paginaActual === numeroPaginas"
+      >
+        Siguiente
+      </button>
+      <button
+        @click="irUltimaPagina"
+        :disabled="paginaActual === numeroPaginas"
       >
         Último
-      </button> -->
-      <button @click="irPaginaSiguiente" :disabled="paginaActual === numeroPaginas" class="btn btn-light">
-        <i class="fas fa-angle-right"></i>
       </button>
-      <button @click="irUltimaPagina" :disabled="paginaActual === numeroPaginas" class="btn btn-light">
-        <i class="fas fa-angle-double-right"></i>
-      </button>
-
     </div>
 
-    <!-- Sección de Dashboard de Solicitudes Aceptadas -->
-    <div class="dashboard-aceptadas">
-      <h2 class="dashboard-title">Solicitudes Aceptadas</h2>
-      <div class="carousel">
-        <button @click="prevCard" class="carousel-button left">‹</button>
-        <div class="aceptadas-grid" ref="aceptadasGrid">
-          <div
-            v-for="solicitud in solicitudesAceptadas"
-            :key="solicitud.id_solicitud"
-            class="aceptada-card"
-            @click="abrirModal(solicitud)"
-          >
-            <h3>{{ obtenerTituloCurso(solicitud.Fk_Curso) || "Sin curso" }}</h3>
-            <p>
-              <strong>Fecha de Solicitud:</strong>
-              {{ new Date(solicitud.fecha_solicitud).toLocaleDateString() }}
-            </p>
-            <p><strong>Solicitante:</strong> {{ solicitud.nombre_completo }}</p>
-          </div>
+    <!-- Modal de rechazo -->
+    <div v-if="mostrarModalRechazo" class="modal-overlay">
+      <div class="modal-content">
+        <h3>Motivo de Rechazo</h3>
+        <textarea
+          v-model="motivoRechazo"
+          placeholder="Ingrese el motivo del rechazo"
+        ></textarea>
+        <div class="modal-buttons">
+          <button @click="confirmarRechazo" class="btn-cerrar-modal">
+            Confirmar
+          </button>
+          <button @click="cerrarModalRechazo" class="btn-cerrar-modal">
+            Cancelar
+          </button>
         </div>
-        <button @click="nextCard" class="carousel-button right">›</button>
       </div>
     </div>
 
-    <!-- Modal de Detalles -->
-    <div v-if="modalVisible" class="modal-overlay" @click.self="cerrarModal">
+   
+    <!-- Modal de detalles (Segunda Tabla) -->
+    <div v-if="mostrarModalDetalles" class="modal-overlay">
       <div class="modal-content">
+        <!-- Botón cerrar en la esquina -->
+        <button class="modal-close" @click="cerrarModalDetalles">×</button>
         <h3>Detalles de la Solicitud</h3>
-        <p>
-          <strong>Curso:</strong>
-          {{ obtenerTituloCurso(detalleSolicitud?.Fk_Curso) || "Sin curso" }}
-        </p>
-        <p>
-          <strong>Fecha de Solicitud:</strong>
-          {{
-            detalleSolicitud?.fecha_solicitud
-              ? new Date(detalleSolicitud.fecha_solicitud).toLocaleDateString()
-              : "Sin fecha"
-          }}
-        </p>
-        <p>
-          <strong>Solicitante:</strong> {{ detalleSolicitud?.nombre_completo }}
-        </p>
-        <p>
-          <strong>Número Telefónico:</strong>
-          {{ detalleSolicitud?.nro_telefonico }}
-        </p>
-        <p><strong>DNI:</strong> {{ detalleSolicitud?.dni }}</p>
-        <p>
-          <strong>Fecha de Nacimiento:</strong>
-          {{
-            detalleSolicitud?.fecha_nacimiento
-              ? new Date(detalleSolicitud.fecha_nacimiento).toLocaleDateString()
-              : "Sin fecha"
-          }}
-        </p>
-        <p><strong>Dirección:</strong> {{ detalleSolicitud?.direccion }}</p>
-        <p>
-          <strong>Teléfono de Contacto:</strong>
-          {{ detalleSolicitud?.telefono_contacto }}
-        </p>
-        <p>
-          <strong>Correo Electrónico:</strong>
-          {{ detalleSolicitud?.correo_electronico }}
-        </p>
-        <p>
-          <strong>Nacionalidad:</strong> {{ detalleSolicitud?.nacionalidad }}
-        </p>
-        <p>
-          <strong>Ocupación Actual:</strong>
-          {{ detalleSolicitud?.ocupacion_actual }}
-        </p>
-        <p>
-          <strong>Nombre de Empresa:</strong>
-          {{ detalleSolicitud?.nombre_empresa }}
-        </p>
-        <p>
-          <strong>Cargo Actual:</strong> {{ detalleSolicitud?.cargo_actual }}
-        </p>
-        <p>
-          <strong>Experiencia con Maquinaria:</strong>
-          {{ detalleSolicitud?.experiencia_maquinaria }}
-        </p>
-        <p>
-          <strong>Contacto de Emergencia:</strong>
-          {{ detalleSolicitud?.nombre_contacto_emergencia }}
-        </p>
-        <p>
-          <strong>Relación de Contacto:</strong>
-          {{ detalleSolicitud?.relacion_contacto_emergencia }}
-        </p>
-        <p>
-          <strong>Teléfono de Emergencia:</strong>
-          {{ detalleSolicitud?.telefono_contacto_emergencia }}
-        </p>
-        <p>
-          <strong>Fecha de Inicio Preferida:</strong>
-          {{
-            detalleSolicitud?.fecha_inicio_preferida
-              ? new Date(
-                  detalleSolicitud.fecha_inicio_preferida
-                ).toLocaleDateString()
-              : "Sin fecha"
-          }}
-        </p>
-        <p>
-          <strong>Turno Preferido:</strong>
-          {{ detalleSolicitud?.turno_preferido }}
-        </p>
-        <p>
-          <strong>Alergias o Condiciones:</strong>
-          {{ detalleSolicitud?.alergias_condiciones }}
-        </p>
-        <p>
-          <strong>Necesidades Especiales:</strong>
-          {{ detalleSolicitud?.necesidades_especiales }}
-        </p>
-        <p>
-          <strong>Consentimiento de Participación:</strong>
-          {{ detalleSolicitud?.consentimiento_participacion ? "Sí" : "No" }}
-        </p>
-        <p>
-          <strong>Autorización de Imagen:</strong>
-          {{ detalleSolicitud?.autorizacion_imagen ? "Sí" : "No" }}
-        </p>
-        <p>
-          <strong>Consentimiento para Tratamiento de Datos:</strong>
-          {{ detalleSolicitud?.consentimiento_tratamiento_datos ? "Sí" : "No" }}
-        </p>
-        <p><strong>Firma:</strong> {{ detalleSolicitud?.firma }}</p>
-
-        <button @click="cerrarModal" class="btn-cerrar-modal">Cerrar</button>
+        <div class="modal-details">
+          <!-- Campos en diseño compacto -->
+          <div class="detail-item">
+            <div class="detail-title">ID Solicitud:</div>
+            <div class="detail-value">{{ solicitudActual.id_solicitud }}</div>
+          </div>
+          <div class="detail-item">
+            <div class="detail-title">DNI:</div>
+            <div class="detail-value">{{ solicitudActual.dni }}</div>
+          </div>
+          <div class="detail-item">
+            <div class="detail-title">Nombre Completo:</div>
+            <div class="detail-value">
+              {{ solicitudActual.nombre_completo }}
+            </div>
+          </div>
+          <div class="detail-item">
+            <div class="detail-title">Número Telefónico:</div>
+            <div class="detail-value">{{ solicitudActual.nro_telefonico }}</div>
+          </div>
+          <div class="detail-item">
+            <div class="detail-title">Fecha de Nacimiento:</div>
+            <div class="detail-value">
+              {{ formatFecha(solicitudActual.fecha_nacimiento) }}
+            </div>
+          </div>
+          <div class="detail-item">
+            <div class="detail-title">Dirección:</div>
+            <div class="detail-value">{{ solicitudActual.direccion }}</div>
+          </div>
+          <div class="detail-item">
+            <div class="detail-title">Teléfono de Contacto:</div>
+            <div class="detail-value">
+              {{ solicitudActual.telefono_contacto }}
+            </div>
+          </div>
+          <div class="detail-item">
+            <div class="detail-title">Correo Electrónico:</div>
+            <div class="detail-value">
+              {{ solicitudActual.correo_electronico }}
+            </div>
+          </div>
+          <div class="detail-item">
+            <div class="detail-title">Nacionalidad:</div>
+            <div class="detail-value">{{ solicitudActual.nacionalidad }}</div>
+          </div>
+          <div class="detail-item">
+            <div class="detail-title">Ocupación Actual:</div>
+            <div class="detail-value">
+              {{ solicitudActual.ocupacion_actual }}
+            </div>
+          </div>
+          <div class="detail-item">
+            <div class="detail-title">Curso Solicitado (ID):</div>
+            <div class="detail-value">{{ solicitudActual.fk_curso }}</div>
+          </div>
+          <div class="detail-item">
+            <div class="detail-title">Nombre de la Empresa:</div>
+            <div class="detail-value">{{ solicitudActual.nombre_empresa }}</div>
+          </div>
+          <div class="detail-item">
+            <div class="detail-title">Cargo Actual:</div>
+            <div class="detail-value">{{ solicitudActual.cargo_actual }}</div>
+          </div>
+          <div class="detail-item">
+            <div class="detail-title">Experiencia en Maquinaria:</div>
+            <div class="detail-value">
+              {{ solicitudActual.experiencia_maquinaria }}
+            </div>
+          </div>
+          <div class="detail-item">
+            <div class="detail-title">Estado:</div>
+            <div class="detail-value">{{ solicitudActual.estado}}</div>
+          </div>
+        </div>
+        <!-- Botón de cerrar al final -->
+        <div class="modal-buttons">
+          <button @click="cerrarModalDetalles" class="btn-cerrar-modal">
+            Cerrar
+          </button>
+        </div>
       </div>
     </div>
   </div>
 </template>
 
 <script>
+import { ref, onMounted, computed } from "vue";
 import { supabase } from "@/supabase.js";
+import { useRouter } from "vue-router";
 
 export default {
-  name: "GestionarSolicitudes",
-  data() {
-    return {
-      solicitudes: [],
-      cursos: [],
-      solicitudesAceptadas: [],
-      modalVisible: false,
-      detalleSolicitud: null,
-      paginaActual: 1,
-      registrosPorPagina: 5,
-      cardIndex: 0, // Índice para el desplazamiento de una tarjeta a la vez
+  setup() {
+    // Variables reactivas
+    const solicitudes = ref([]);
+    const cursos = ref([]);
+    const registrosPorPagina = ref(5);
+    const paginaActual = ref(1);
+    const searchQuery = ref("");
+    const searchId = ref("");
+    const mostrarModalRechazo = ref(false);
+    const mostrarModalDetalles = ref(false);
+    const motivoRechazo = ref("");
+    const solicitudActual = ref(null);
+    const router = useRouter();
+
+
+
+
+    const formEndpoint = ref("https://formspree.io/f/movqylzn");
+
+    // Funciones para cargar datos
+    const fetchSolicitudes = async () => {
+      try {
+        const { data, error } = await supabase
+          .from("solicitud_capacitacion")
+          .select("*");
+        if (error) throw error;
+
+        console.log("Solicitudes cargadas:", data); // Verificar los datos obtenidos en consola
+        solicitudes.value = data;
+      } catch (error) {
+        console.error("Error al cargar las solicitudes:", error.message);
+      }
     };
-  },
-  computed: {
-    totalPaginas() {
-      return Math.ceil(this.solicitudes.length / this.registrosPorPagina);
-    },
-    solicitudesPaginadas() {
-      const inicio = (this.paginaActual - 1) * this.registrosPorPagina;
-      const fin = inicio + this.registrosPorPagina;
-      return this.solicitudes.slice(inicio, fin);
-    },
-  },
-  async mounted() {
-    let { data: solicitudes, error: errorSolicitudes } = await supabase
-      .from("Solicitud_Capacitacion")
-      .select("*");
 
-    if (errorSolicitudes) {
-      console.error("Error fetching solicitudes: ", errorSolicitudes);
-    } else {
-      this.solicitudes = solicitudes;
-      this.solicitudesAceptadas = solicitudes.filter(
-        (solicitud) => solicitud.estado === "Aceptada"
+    const fetchCursos = async () => {
+      const { data, error } = await supabase.from("cursos").select("*");
+      if (!error) cursos.value = data;
+    };
+
+    // Computed: Filtrar y paginar solicitudes
+    const solicitudesFiltradas = computed(() => {
+      return solicitudes.value
+        .filter(
+          (solicitud) =>
+            !searchQuery.value ||
+            (getNombreCurso(solicitud.fk_curso) || "")
+              .toLowerCase()
+              .includes(searchQuery.value.toLowerCase())
+        )
+        .sort(
+          (a, b) => new Date(b.fecha_solicitud) - new Date(a.fecha_solicitud)
+        ); // Ordenar por fecha descendente
+    });
+
+    const solicitudesPaginadas = computed(() => {
+      const inicio = (paginaActual.value - 1) * registrosPorPagina.value;
+      return solicitudesFiltradas.value.slice(
+        inicio,
+        inicio + registrosPorPagina.value
       );
-    }
+    });
 
-    let { data: cursos, error: errorCursos } = await supabase
-      .from("Cursos")
-      .select("Pk_Curso, titulo_curso");
+    // Nueva propiedad computada: Filtrar solicitudes aceptadas
+    const solicitudesAceptadasFiltradas = computed(() => {
+      return solicitudes.value.filter(
+        (solicitud) =>
+          solicitud.estado === "Aceptada" &&
+          (!searchId.value || solicitud.dni.toString().includes(searchId.value))
+      );
+    });
 
-    if (errorCursos) {
-      console.error("Error fetching cursos: ", errorCursos);
-    } else {
-      this.cursos = cursos;
-    }
-  },
-  methods: {
-    obtenerTituloCurso(fkCurso) {
-      const curso = this.cursos.find((curso) => curso.Pk_Curso === fkCurso);
-      return curso ? curso.titulo_curso : null;
-    },
-    verDetalles(idSolicitud) {
-      this.$router.push({ name: "Details", params: { id: idSolicitud } });
-    },
-    getEstadoClase(estado) {
-      if (estado === "Aceptada") {
-        return "estado-aceptada";
-      } else if (estado === "Rechazada") {
-        return "estado-rechazada";
-      } else {
-        return "estado-pendiente";
-      }
-    },
-    prevCard() {
-      if (this.cardIndex > 0) {
-        this.cardIndex--;
-        this.scrollToCurrentCard();
-      }
-    },
-    nextCard() {
-      if (this.cardIndex < this.solicitudesAceptadas.length - 4) {
-        this.cardIndex++;
-        this.scrollToCurrentCard();
-      }
-    },
-    scrollToCurrentCard() {
-      const grid = this.$refs.aceptadasGrid;
-      const cardWidth = grid.querySelector(".aceptada-card").offsetWidth;
-      grid.scrollTo({
-        left: this.cardIndex * (cardWidth + 10), // Ajuste para margen
-        behavior: "smooth",
+    // Computed: Número total de páginas
+    const numeroPaginas = computed(() => {
+      return Math.ceil(
+        solicitudesFiltradas.value.length / registrosPorPagina.value
+      );
+    });
+
+    // Funciones de paginación
+    const irPrimeraPagina = () => {
+      paginaActual.value = 1;
+    };
+
+    const irUltimaPagina = () => {
+      paginaActual.value = numeroPaginas.value;
+    };
+
+    const irPaginaAnterior = () => {
+      if (paginaActual.value > 1) paginaActual.value--;
+    };
+
+    const irPaginaSiguiente = () => {
+      if (paginaActual.value < numeroPaginas.value) paginaActual.value++;
+    };
+
+    const validarPagina = () => {
+      if (paginaActual.value < 1) paginaActual.value = 1;
+      if (paginaActual.value > numeroPaginas.value)
+        paginaActual.value = numeroPaginas.value;
+    };
+
+    const gestionarSolicitud = async (solicitud, estado) => {
+      try {
+        const nuevoEstado = estado === "aceptado" ? "Aceptada" : "Rechazada";
+        console.log(nuevoEstado);
+        console.log(solicitud.id_solicitud);
+
+        const { error } = await supabase
+          .from("solicitud_capacitacion")
+          .update({
+            estado_solicitud: nuevoEstado,
+            motivo_rechazo: estado === "rechazado" ? motivoRechazo.value : null
+          })
+          .eq("id_solicitud", solicitud.id_solicitud);
+         console.log("error",Error);
+
+        if (error) throw error;
+
+          if (nuevoEstado == "Aceptada") {
+            const formData = {
+              name: solicitud.nombre_completo,
+              email: solicitud.correo_electronico,
+              message: "Su solicitud ha sido aprobado",
+            };
+            const response = await fetch(formEndpoint.value, {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify(formData),
+            });
+
+            if (response.ok) {
+              Swal.fire({
+                icon: "success",
+                title: "Success",
+                text: "Correo enviado exitosamente!",
+              });
+            }
+          } else {
+            const formData = {
+              name: solicitud.nombre_completo,
+              email: solicitud.correo_electronico,
+              message: "Su solicitud ha sido rechazada",
+            };
+            const response = await fetch(formEndpoint.value, {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify(formData),
+            });
+
+            if (response.ok) {
+              Swal.fire({
+                icon: "success",
+                title: "Success",
+                text: "Correo enviado exitosamente!",
+              });
+            }
+          }
+        } catch (error) {
+          Swal.fire({
+            icon: "error",
+            title: "Error",
+            text: error.message,
+          });
+        }
+        fetchSolicitudes();
+
+    };
+
+    const confirmarRechazo = async () => {
+      await gestionarSolicitud(solicitudActual.value, "rechazado");
+      cerrarModalRechazo();
+    };
+
+    const abrirModalRechazo = (solicitud) => {
+      solicitudActual.value = solicitud;
+      mostrarModalRechazo.value = true;
+    };
+
+    const cerrarModalRechazo = () => {
+      mostrarModalRechazo.value = false;
+      motivoRechazo.value = "";
+    };
+
+    // Modal de detalles
+    const abrirModalDetalles = (solicitud) => {
+      solicitudActual.value = solicitud;
+      mostrarModalDetalles.value = true;
+    };
+
+    const cerrarModalDetalles = () => {
+      mostrarModalDetalles.value = false;
+    };
+
+    // Funciones del carrusel (segunda tabla)
+    const prevCard = () => {
+      const grid = document.querySelector(".aceptadas-grid");
+      grid.scrollBy({ left: -220, behavior: "smooth" });
+    };
+
+    const nextCard = () => {
+      const grid = document.querySelector(".aceptadas-grid");
+      grid.scrollBy({ left: 220, behavior: "smooth" });
+    };
+
+    // Utilidades
+    const formatFecha = (fecha) => {
+      if (!fecha) return "Fecha no disponible";
+      const date = new Date(fecha);
+      const day = String(date.getDate()).padStart(2, "0");
+      const month = String(date.getMonth() + 1).padStart(2, "0");
+      const year = date.getFullYear();
+      return `${day}-${month}-${year}`;
+    };
+
+    const getNombreCurso = (fk_curso) => {
+      const curso = cursos.value.find((c) => c.pk_curso === fk_curso);
+      return curso ? curso.titulo_curso : "Curso no encontrado";
+    };
+
+    const viewSolicitud = (solicitud) => {
+      router.push({
+        path: "ManageRequest/Details",
+        query: { id: solicitud.id_solicitud },
       });
-    },
-    abrirModal(solicitud) {
-      this.detalleSolicitud = solicitud;
-      this.modalVisible = true;
-    },
-    cerrarModal() {
-      this.modalVisible = false;
-      this.detalleSolicitud = null;
-    },
+    };
+
+    // Inicialización
+    onMounted(() => {
+      fetchSolicitudes();
+      fetchCursos();
+    });
+
+    return {
+      solicitudes,
+      cursos,
+      registrosPorPagina,
+      paginaActual,
+      solicitudesFiltradas,
+      solicitudesPaginadas,
+      solicitudesAceptadasFiltradas, // Nueva propiedad computada
+      numeroPaginas,
+      irPrimeraPagina,
+      irUltimaPagina,
+      irPaginaAnterior,
+      irPaginaSiguiente,
+      validarPagina,
+      searchQuery,
+      searchId,
+      gestionarSolicitud,
+      abrirModalRechazo,
+      cerrarModalRechazo,
+      confirmarRechazo,
+      abrirModalDetalles,
+      cerrarModalDetalles,
+      prevCard,
+      nextCard,
+      formatFecha,
+      getNombreCurso,
+      viewSolicitud,
+      mostrarModalRechazo,
+      mostrarModalDetalles,
+      motivoRechazo,
+      solicitudActual,
+    };
   },
 };
 </script>
 
 <style scoped>
+/* Contenedor principal */
 .container {
-  padding: 20px;
-  font-family: Arial, sans-serif;
-}
-
-.page-title,
-.section-title {
-  font-size: 24px;
-  font-weight: bold;
-  color: #2c3e50;
-  margin-bottom: 20px;
-}
-
-.controls-container {
-  display: flex;
-  justify-content: space-between;
-  margin-bottom: 20px;
-}
-
-.custom-select,
-.custom-input {
-  padding: 8px;
-  border: 1px solid #ddd;
-  border-radius: 4px;
-}
-
-.styled-table {
-  width: 100%;
-  border-collapse: collapse;
-  margin-bottom: 20px;
-}
-
-.styled-table th,
-.styled-table td {
-  padding: 12px;
-  text-align: left;
-  border: 1px solid #ddd;
-}
-
-.styled-table th {
-  background-color: #2c3e50;
-  color: white;
-}
-
-.styled-table tr:nth-child(even) {
-  background-color: #f2f2f2;
-}
-
-.styled-table tr:hover {
-  background-color: #eaeaea;
-}
-
-.btn {
-  padding: 8px 16px;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-  color: white;
-}
-
-.btn-primary {
-  background-color: #3498db;
-}
-
-.btn-success {
-  background-color: #2ecc71;
-}
-
-.btn-danger {
-  background-color: #e74c3c;
-}
-
-.btn-light {
-  background-color: #ecf0f1;
-  color: #2c3e50;
-}
-
-.pagination-container {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.pagination-input {
-  width: 50px;
-  text-align: center;
-  padding: 5px;
-}
-
-.card {
-  border: 1px solid #ddd;
-  padding: 15px;
-  border-radius: 5px;
-  background-color: #ffffff;
-  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
-}
-
-.carousel-button {
-  background-color: transparent;
-  border: none;
-  font-size: 24px;
-  cursor: pointer;
-}
-</style>
-
-<!-- <style scoped>
-.container {
-  max-width: 1200px;
+  max-width: 100%;
   margin: 0 auto;
-  padding: 2rem;
-  background-color: #f4f4f9;
-  border-radius: 10px;
-  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+  padding: 1.5rem;
+  background-color: #f9f9f9; /* Fondo claro */
+  border-radius: 8px; /* Bordes redondeados */
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1); /* Sombras suaves */
 }
 
-.page-title {
+/* Títulos */
+.page-title,
+.table-title {
+  color: #333333; /* Color de texto más suave */
   text-align: center;
-  font-size: 2rem;
-  color: #1a5276;
-  margin-bottom: 2rem;
   font-weight: bold;
-}
-
-.pagination-controls {
-  display: flex;
-  align-items: center;
   margin-bottom: 1rem;
 }
 
-.pagination-controls label,
-.pagination-controls span {
-  margin-right: 0.5rem;
+.page-title {
+  font-size: 2.2rem;
 }
 
-.table-container {
-  overflow-x: auto;
+.table-title {
+  font-size: 1.6rem;
+  margin-bottom: 0.8rem;
 }
 
+/* Tabla */
 .solicitudes-table {
   width: 100%;
   border-collapse: collapse;
-  background-color: #f9f9f9;
-  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
-}
-
-.solicitudes-table th,
-.solicitudes-table td {
-  padding: 1rem;
-  text-align: center;
-  border-bottom: 1px solid #ddd;
+  background-color: #ffffff; /* Fondo blanco */
+  color: #444444; /* Texto más suave */
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); /* Sombras suaves */
 }
 
 .solicitudes-table th {
-  background-color: #f2f2f2;
-  font-size: 1.2rem;
-  font-weight: bold;
-  color: #333;
+  background-color: #4a90e2; /* Fondo azul vibrante */
+  color: #ffffff; /* Texto blanco */
+  padding: 0.75rem;
+  font-size: 1rem;
+  text-align: left;
 }
 
 .solicitudes-table td {
-  font-size: 1rem;
+  padding: 0.75rem;
+  border-bottom: 1px solid #eeeeee; /* Bordes suaves */
+  background-color: #fdfdfd; /* Fondo claro */
 }
 
-.btn-ver {
-  background-color: #2ecc71;
-  color: white;
-  padding: 0.5rem 1rem;
+.solicitudes-table tr:nth-child(even) td {
+  background-color: #f7f9fc; /* Fondo alternado para filas pares */
+}
+
+.solicitudes-table tr:hover td {
+  background-color: #eaf4ff; /* Resaltado en hover */
+  transition: background-color 0.2s ease-in-out;
+}
+
+/* Botones */
+.view-btn {
+  background-color: #007bff; /* Azul principal */
+  color: #ffffff;
   border: none;
+  padding: 0.5rem 1rem;
   border-radius: 5px;
   cursor: pointer;
-  transition: background-color 0.3s ease;
+  transition: background-color 0.3s ease, transform 0.2s ease;
 }
 
-.btn-ver:hover {
-  background-color: #27ae60;
-}
-
-/* Paginación */
-.pagination {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 1rem;
-  margin-top: 1rem;
-  font-size: 1rem;
+.view-btn:hover {
+  background-color: #0056b3; /* Azul más oscuro */
+  transform: scale(1.05);
 }
 
 .pagination button {
   padding: 0.5rem 1rem;
-  background-color: #3498db;
+  background-color: #4a90e2; /* Azul vibrante */
   color: white;
   border: none;
   border-radius: 5px;
@@ -526,135 +582,383 @@ export default {
 }
 
 .pagination button:disabled {
-  background-color: #bdc3c7;
+  background-color: #cccccc;
   cursor: not-allowed;
 }
 
 .pagination button:hover:enabled {
-  background-color: #2980b9;
+  background-color: #0056b3; /* Azul más oscuro */
 }
 
-/* Dashboard de Solicitudes Aceptadas */
+/* Controles de búsqueda y paginación */
+.controls-container {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.pagination-controls label,
+.pagination-controls select,
+.search-input {
+  font-size: 1rem;
+  color: #333333;
+}
+
+.search-input {
+  border: 1px solid #cccccc;
+  border-radius: 5px;
+  padding: 0.5rem;
+  background-color: #ffffff; /* Fondo blanco */
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.1); /* Apariencia de relieve */
+}
+
+.search-input:focus {
+  border-color: #007bff; /* Resaltado azul en foco */
+  outline: none;
+  box-shadow: 0 0 5px rgba(0, 123, 255, 0.5); /* Sombra azul */
+}
+
+/* Carrusel de solicitudes aceptadas */
 .dashboard-aceptadas {
   margin-top: 2rem;
 }
 
-.dashboard-title {
-  text-align: center;
-  font-size: 2rem;
-  color: #1a5276;
-  margin-bottom: 1rem;
-  font-weight: bold;
-}
-
-.carousel {
-  display: flex;
-  align-items: center;
-}
-
-.aceptadas-grid {
-  display: flex;
-  overflow-x: hidden;
-  scroll-behavior: smooth;
-  padding: 1rem;
-}
-
 .aceptada-card {
-  background-color: #ffffff;
-  border: 1px solid #ddd;
-  border-radius: 10px;
-  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
-  padding: 1rem;
-  min-width: 200px;
-  max-width: 200px;
+  background-color: #ffffff; /* Fondo blanco */
+  border: 1px solid #4a90e2; /* Borde azul vibrante */
+  color: #333333;
   text-align: center;
-  margin: 0 0.5rem;
-  cursor: pointer;
-  transition: transform 0.1s ease, box-shadow 0.1s ease,
-    background-color 0.2s ease;
+  border-radius: 10px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1); /* Sombras suaves */
+  transition: transform 0.2s, box-shadow 0.3s;
 }
 
 .aceptada-card:hover {
-  transform: translateY(-3px);
-  box-shadow: 0 6px 12px rgba(0, 0, 0, 0.2);
-  background-color: #f0f8ff;
+  background-color: #eaf4ff; /* Fondo azul claro */
+  transform: scale(1.02);
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.15); /* Sombras más intensas */
 }
 
-.aceptada-card:active {
-  transform: scale(0.97);
-  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
-}
-
-/* Modal de Detalles */
+/* Modal */
 .modal-overlay {
   position: fixed;
   top: 0;
   left: 0;
   width: 100%;
   height: 100%;
-  background: rgba(0, 0, 0, 0.5);
+  background-color: rgba(0, 0, 0, 0.5);
   display: flex;
-  align-items: center;
   justify-content: center;
-  animation: fadeIn 0.3s ease-in-out;
+  align-items: center;
 }
 
 .modal-content {
-  background: #fff;
+  background-color: #ffffff;
   padding: 2rem;
-  border-radius: 10px;
-  max-width: 700px; /* Mayor ancho */
-  width: 90%;
-  text-align: center;
-  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
-  overflow-y: auto;
-  max-height: 90vh;
-  padding: 2rem 3rem; /* Espaciado adicional */
-  animation: slideDown 0.3s ease-in-out;
+  border-radius: 8px;
+  width: 80%;
+  max-width: 500px;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
 }
 
 .modal-content h3 {
+  margin-bottom: 1rem;
   font-size: 1.5rem;
-  color: #333;
-  margin-bottom: 1rem;
+  color: #333333;
 }
 
-.modal-content p {
-  font-size: 1rem;
-  color: #555;
-  margin-bottom: 1rem;
-}
-
-.btn-cerrar-modal {
-  background-color: #e74c3c;
-  color: white;
+.modal-buttons button {
   padding: 0.5rem 1rem;
-  border: none;
+  margin: 0 0.5rem;
   border-radius: 5px;
+  border: none;
   cursor: pointer;
+  font-weight: bold;
+}
+
+.modal-buttons button.btn-cerrar-modal {
+  background-color: #ff4d4f; /* Rojo vibrante */
+  color: white;
+}
+
+.modal-buttons button.btn-cerrar-modal:hover {
+  background-color: #cc0000;
+}
+
+.modal-buttons button.btn-confirmar {
+  background-color: #4caf50; /* Verde */
+  color: white;
+}
+
+.modal-buttons button.btn-confirmar:hover {
+  background-color: #2e7d32; /* Verde más oscuro */
+}
+/* Estilos para el carrusel */
+.dashboard-aceptadas {
+  margin-top: 2rem;
+  display: flex;
+  align-items: center;
+  overflow: hidden;
+  position: relative; /* Necesario para las flechas */
+}
+
+.aceptadas-grid {
+  display: flex;
+  gap: 1rem; /* Espaciado entre tarjetas */
+  overflow-x: auto; /* Permitir desplazamiento horizontal */
+  scroll-behavior: smooth; /* Movimiento suave */
+  padding: 1rem;
+}
+
+.aceptada-card {
+  flex: 0 0 250px; /* Cada tarjeta tiene un ancho fijo */
+  background-color: #ffffff;
+  border: 1px solid #4a90e2;
+  color: #333333;
+  text-align: center;
+  border-radius: 10px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  padding: 1rem;
+  transition: transform 0.2s, box-shadow 0.3s;
+}
+
+.aceptada-card:hover {
+  background-color: #eaf4ff;
+  transform: scale(1.02);
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.15);
+}
+
+/* Flechas del carrusel */
+.carousel-button {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  background-color: #007bff;
+  color: white;
+  border: none;
+  border-radius: 50%;
+  width: 40px;
+  height: 40px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.5rem;
+  z-index: 1;
   transition: background-color 0.3s ease;
 }
 
-.btn-cerrar-modal:hover {
-  background-color: #c0392b;
+.carousel-button.left {
+  left: 10px;
 }
 
-/* Animaciones */
+.carousel-button.right {
+  right: 10px;
+}
+
+.carousel-button:hover {
+  background-color: #0056b3;
+}
+
+.carousel-button:disabled {
+  background-color: #cccccc;
+  cursor: not-allowed;
+}
+/* Fondo translúcido del modal */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.5); /* Fondo oscuro translúcido */
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000; /* Aparece sobre otros elementos */
+}
+
+/* Contenedor del modal */
+.modal-content {
+  background-color: #ffffff;
+  padding: 2rem;
+  border-radius: 12px; /* Bordes redondeados */
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2); /* Sombras suaves */
+  width: 80%;
+  max-width: 500px;
+  animation: fadeIn 0.3s ease-out; /* Animación de aparición */
+  position: relative;
+}
+
+/* Título del modal */
+.modal-content h3 {
+  font-size: 1.8rem;
+  color: #333333;
+  margin-bottom: 1rem;
+  text-align: center; /* Centrar el texto */
+  font-weight: bold;
+}
+
+/* Contenido dentro del modal */
+.modal-details {
+  display: flex;
+  flex-direction: column;
+  gap: 0.8rem; /* Espaciado entre elementos */
+}
+
+.detail-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.detail-title {
+  font-weight: bold;
+  color: #555555;
+}
+
+.detail-value {
+  color: #333333;
+  font-size: 1rem;
+}
+
+/* Caja de texto dentro del modal */
+textarea {
+  width: 100%;
+  min-height: 100px;
+  resize: none; /* Evitar redimensionar */
+  padding: 0.8rem;
+  border: 1px solid #cccccc;
+  border-radius: 8px;
+  background-color: #f9f9f9;
+  font-size: 1rem;
+  color: #333333;
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.1); /* Apariencia de relieve */
+  transition: border-color 0.2s ease;
+}
+
+textarea:focus {
+  border-color: #007bff; /* Azul en foco */
+  outline: none;
+  box-shadow: 0 0 5px rgba(0, 123, 255, 0.3); /* Resaltado en foco */
+}
+
+/* Fondo translúcido del modal */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.5); /* Fondo oscuro translúcido */
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+/* Contenedor del modal */
+.modal-content {
+  background-color: #ffffff;
+  padding: 2rem;
+  border-radius: 12px; /* Bordes redondeados */
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2); /* Sombras suaves */
+  width: 90%;
+  max-width: 600px; /* Ancho máximo del modal */
+  max-height: 80%; /* Altura máxima del modal */
+  overflow-y: auto; /* Permitir desplazamiento vertical */
+  position: relative; /* Necesario para el botón cerrar */
+  animation: fadeIn 0.3s ease-out; /* Animación */
+}
+
+/* Título del modal */
+.modal-content h3 {
+  font-size: 1.5rem;
+  color: #333333;
+  margin-bottom: 1.5rem;
+  text-align: center;
+  font-weight: bold;
+}
+
+/* Diseño en grid para los campos */
+.modal-details {
+  display: grid;
+  grid-template-columns: 1fr 1fr; /* Dos columnas iguales */
+  gap: 1rem; /* Espaciado entre elementos */
+  margin-bottom: 1rem;
+}
+
+/* Campos individuales */
+.detail-item {
+  display: flex;
+  flex-direction: column;
+}
+
+.detail-title {
+  font-weight: bold;
+  color: #555555;
+  margin-bottom: 0.3rem;
+}
+
+.detail-value {
+  color: #333333;
+  font-size: 0.95rem;
+}
+
+/* Botón de cerrar en la esquina */
+.modal-close {
+  position: absolute;
+  top: 10px;
+  right: 15px;
+  background-color: transparent;
+  color: #333333;
+  border: none;
+  font-size: 1.5rem;
+  cursor: pointer;
+  transition: color 0.3s ease;
+}
+
+.modal-close:hover {
+  color: #ff4d4f; /* Cambia a rojo al pasar el mouse */
+}
+
+/* Botón de cerrar al final */
+.modal-buttons {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 1.5rem;
+}
+
+.modal-buttons button {
+  padding: 0.8rem 1.5rem;
+  border-radius: 8px;
+  font-weight: bold;
+  border: none;
+  cursor: pointer;
+  transition: background-color 0.3s ease, transform 0.2s ease;
+  font-size: 1rem;
+}
+
+.modal-buttons button.btn-cerrar-modal {
+  background-color: #ff4d4f;
+  color: white;
+}
+
+.modal-buttons button.btn-cerrar-modal:hover {
+  background-color: #cc0000;
+  transform: scale(1.05);
+}
+
+/* Animación de aparición */
 @keyframes fadeIn {
   from {
     opacity: 0;
+    transform: scale(0.9);
   }
   to {
     opacity: 1;
+    transform: scale(1);
   }
 }
-
-@keyframes slideDown {
-  from {
-    transform: translateY(-20px);
-  }
-  to {
-    transform: translateY(0);
-  }
-}
-</style> -->
+</style>

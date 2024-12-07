@@ -55,7 +55,7 @@
             <div v-if="evaluacion.estado === 'pendiente'" class="calificacion-input">
               <input
                 type="number"
-                v-model.number="evaluacion.calificacion"
+                v-model.number="evaluacion.puntaje_total"
                 min="0"
                 max="20"
                 class="grade-input"
@@ -65,7 +65,7 @@
                 Guardar
               </button>
             </div>
-            <span v-else>{{ evaluacion.calificacion }}/20</span>
+            <span v-else>{{ evaluacion.puntaje_total }}/20</span>
           </td>
           <td>
             <span :class="['estado-badge', evaluacion.estado]">
@@ -171,7 +171,7 @@ export default {
     };
 
     const guardarCalificacion = async (evaluacion) => {
-      if (evaluacion.calificacion < 0 || evaluacion.calificacion > 20) {
+      if (evaluacion.puntaje_total < 0 || evaluacion.puntaje_total > 20) {
         alert("La calificación debe estar entre 0 y 20");
         return;
       }
@@ -179,7 +179,7 @@ export default {
       const { error } = await supabase
         .from("evaluacion_practica")
         .update({
-          calificacion: evaluacion.calificacion,
+          puntaje_total: evaluacion.puntaje_total,
           estado: 'calificado'
         })
         .eq('pk_evaluacion_practica', evaluacion.pk_evaluacion_practica);
@@ -196,17 +196,17 @@ export default {
     const verificarAprobacionTeorica = async (operadorId, cursoId) => {
       const { data, error } = await supabase
         .from("evaluacion_teorica")
-        .select("calificacion")
+        .select("puntaje_total")
         .eq("fk_operador", operadorId)
         .eq("fk_curso", cursoId)
         .single();
 
       if (error) return false;
-      return data && data.calificacion >= 14;
+      return data && data.puntaje_total >= 14;
     };
 
     const puedeGenerarCertificado = async (evaluacion) => {
-      if (!evaluacion.calificacion || evaluacion.calificacion < 11) return false;
+      if (!evaluacion.puntaje_total || evaluacion.puntaje_total < 11) return false;
       return await verificarAprobacionTeorica(evaluacion.fk_operador, evaluacion.fk_curso);
     };
 
@@ -237,7 +237,7 @@ export default {
       
       doc.setFont(undefined, 'normal');
       doc.text(`Con las siguientes calificaciones:`, 20, 110);
-      doc.text(`Evaluación Práctica: ${evaluacion.calificacion}/20`, 30, 125);
+      doc.text(`Evaluación Práctica: ${evaluacion.puntaje_total}/20`, 30, 125);
       
       const fecha = new Date().toLocaleDateString();
       doc.text(`Fecha de emisión: ${fecha}`, 20, 160);
