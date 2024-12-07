@@ -13,54 +13,26 @@
             <h2>Información Personal</h2>
             <div class="form-group">
               <label for="dni" class="required">DNI</label>
-              <input
-                type="text"
-                id="dni"
-                v-model="form.dni"
-                @input="validateDni"
-                required
-                class="form-input"
-                :class="{ 'is-invalid': errors.dni }"
-              />
+              <input type="text" id="dni" v-model="form.dni" @input="validateDni" required class="form-input"
+                :class="{ 'is-invalid': errors.dni }" />
               <span v-if="errors.dni" class="error-message">{{ errors.dni }}</span>
             </div>
 
             <div class="form-group">
               <label for="nombre_completo" class="required">Nombre Completo</label>
-              <input
-                type="text"
-                id="nombre_completo"
-                v-model="form.nombre_completo"
-                required
-                class="form-input"
-              />
+              <input type="text" id="nombre_completo" v-model="form.nombre_completo" required class="form-input" />
             </div>
 
             <div class="form-group">
               <label for="fecha_nacimiento" class="required">Fecha de Nacimiento</label>
-              <input
-                type="date"
-                id="fecha_nacimiento"
-                v-model="form.fecha_nacimiento"
-                required
-                class="form-input"
-              />
+              <input type="date" id="fecha_nacimiento" v-model="form.fecha_nacimiento" required class="form-input" />
             </div>
 
             <div class="form-group">
               <label for="nacionalidad" class="required">Nacionalidad</label>
-              <select
-                id="nacionalidad"
-                v-model="form.nacionalidad"
-                required
-                class="form-input"
-              >
+              <select id="nacionalidad" v-model="form.nacionalidad" required class="form-input">
                 <option value="" disabled>Seleccione un país</option>
-                <option
-                  v-for="pais in paises"
-                  :key="pais.id"
-                  :value="pais.nombre"
-                >
+                <option v-for="pais in paises" :key="pais.id" :value="pais.nombre">
                   {{ pais.nombre }}
                 </option>
               </select>
@@ -72,39 +44,20 @@
             <h2>Información de Contacto</h2>
             <div class="form-group">
               <label for="correo_electronico" class="required">Correo Electrónico</label>
-              <input
-                type="email"
-                id="correo_electronico"
-                v-model="form.correo_electronico"
-                @input="validateEmail"
-                required
-                class="form-input"
-                :class="{ 'is-invalid': errors.email }"
-              />
+              <input type="email" id="correo_electronico" v-model="form.correo_electronico" @input="validateEmail"
+                required class="form-input" :class="{ 'is-invalid': errors.email }" />
               <span v-if="errors.email" class="error-message">{{ errors.email }}</span>
             </div>
 
             <div class="form-group">
               <label for="telefono_contacto" class="required">Teléfono de Contacto</label>
-              <input
-                type="tel"
-                id="telefono_contacto"
-                v-model="form.telefono_contacto"
-                @input="filterPhoneNumber('telefono_contacto')"
-                required
-                class="form-input"
-              />
+              <input type="tel" id="telefono_contacto" v-model="form.telefono_contacto"
+                @input="filterPhoneNumber('telefono_contacto')" required class="form-input" />
             </div>
 
             <div class="form-group">
               <label for="direccion" class="required">Dirección</label>
-              <input
-                type="text"
-                id="direccion"
-                v-model="form.direccion"
-                required
-                class="form-input"
-              />
+              <input type="text" id="direccion" v-model="form.direccion" required class="form-input" />
             </div>
           </div>
 
@@ -113,43 +66,23 @@
             <h2>Información Profesional</h2>
             <div class="form-group">
               <label for="ocupacion_actual" class="required">Ocupación Actual</label>
-              <input
-                type="text"
-                id="ocupacion_actual"
-                v-model="form.ocupacion_actual"
-                required
-                class="form-input"
-              />
+              <input type="text" id="ocupacion_actual" v-model="form.ocupacion_actual" required class="form-input" />
             </div>
 
             <div class="form-group">
               <label for="nombre_empresa">Nombre de la Empresa</label>
-              <input
-                type="text"
-                id="nombre_empresa"
-                v-model="form.nombre_empresa"
-                class="form-input"
-              />
+              <input type="text" id="nombre_empresa" v-model="form.nombre_empresa" class="form-input" />
             </div>
 
             <div class="form-group">
               <label for="cargo_actual">Cargo Actual</label>
-              <input
-                type="text"
-                id="cargo_actual"
-                v-model="form.cargo_actual"
-                class="form-input"
-              />
+              <input type="text" id="cargo_actual" v-model="form.cargo_actual" class="form-input" />
             </div>
 
             <div class="form-group">
               <label for="experiencia_maquinaria">Experiencia en Maquinaria</label>
-              <textarea
-                id="experiencia_maquinaria"
-                v-model="form.experiencia_maquinaria"
-                class="form-input"
-                rows="3"
-              ></textarea>
+              <textarea id="experiencia_maquinaria" v-model="form.experiencia_maquinaria" class="form-input"
+                rows="3"></textarea>
             </div>
           </div>
 
@@ -158,18 +91,9 @@
             <h2>Información del Curso</h2>
             <div class="form-group">
               <label for="fk_curso" class="required">Curso</label>
-              <select
-                id="fk_curso"
-                v-model="form.fk_curso"
-                required
-                class="form-input"
-              >
+              <select id="fk_curso" v-model="form.fk_curso" required class="form-input">
                 <option value="" disabled>Seleccione un curso</option>
-                <option
-                  v-for="curso in cursos"
-                  :key="curso.pk_curso"
-                  :value="curso.pk_curso"
-                >
+                <option v-for="curso in cursos" :key="curso.pk_curso" :value="curso.pk_curso">
                   {{ curso.titulo_curso }}
                 </option>
               </select>
@@ -177,22 +101,13 @@
 
             <div class="form-group">
               <label for="fecha_inicio_preferida">Fecha de Inicio Preferida</label>
-              <input
-                type="date"
-                id="fecha_inicio_preferida"
-                v-model="form.fecha_inicio_preferida"
-                :min="today"
-                class="form-input"
-              />
+              <input type="date" id="fecha_inicio_preferida" v-model="form.fecha_inicio_preferida" :min="today"
+                class="form-input" />
             </div>
 
             <div class="form-group">
               <label for="turno_preferido">Turno Preferido</label>
-              <select
-                id="turno_preferido"
-                v-model="form.turno_preferido"
-                class="form-input"
-              >
+              <select id="turno_preferido" v-model="form.turno_preferido" class="form-input">
                 <option value="" disabled>Seleccione un turno</option>
                 <option value="mañana">Mañana</option>
                 <option value="tarde">Tarde</option>
@@ -206,14 +121,8 @@
             <div class="form-group">
               <label for="dni_adjunto" class="required">DNI Adjunto</label>
               <div class="file-input-wrapper">
-                <input
-                  type="file"
-                  id="dni_adjunto"
-                  @change="handleFileUpload('dni_adjunto', $event)"
-                  accept=".pdf,.jpg,.jpeg,.png"
-                  required
-                  class="file-input"
-                />
+                <input type="file" id="dni_adjunto" @change="handleFileUpload('dni_adjunto', $event)"
+                  accept=".pdf,.jpg,.jpeg,.png" required class="file-input" />
                 <div class="file-input-custom">
                   <span class="file-name">{{ getFileName('dni_adjunto') || 'Ningún archivo seleccionado' }}</span>
                   <button type="button" class="browse-button">Examinar</button>
@@ -224,16 +133,12 @@
             <div class="form-group">
               <label for="certificado_medico_adjunto" class="required">Certificado Médico</label>
               <div class="file-input-wrapper">
-                <input
-                  type="file"
-                  id="certificado_medico_adjunto"
-                  @change="handleFileUpload('certificado_medico_adjunto', $event)"
-                  accept=".pdf,.jpg,.jpeg,.png"
-                  required
-                  class="file-input"
-                />
+                <input type="file" id="certificado_medico_adjunto"
+                  @change="handleFileUpload('certificado_medico_adjunto', $event)" accept=".pdf,.jpg,.jpeg,.png"
+                  required class="file-input" />
                 <div class="file-input-custom">
-                  <span class="file-name">{{ getFileName('certificado_medico_adjunto') || 'Ningún archivo seleccionado' }}</span>
+                  <span class="file-name">{{ getFileName('certificado_medico_adjunto') || 'Ningún archivo seleccionado'
+                    }}</span>
                   <button type="button" class="browse-button">Examinar</button>
                 </div>
               </div>
@@ -242,15 +147,12 @@
             <div class="form-group">
               <label for="licencia_conducir_adjunto">Licencia de Conducir</label>
               <div class="file-input-wrapper">
-                <input
-                  type="file"
-                  id="licencia_conducir_adjunto"
-                  @change="handleFileUpload('licencia_conducir_adjunto', $event)"
-                  accept=".pdf,.jpg,.jpeg,.png"
-                  class="file-input"
-                />
+                <input type="file" id="licencia_conducir_adjunto"
+                  @change="handleFileUpload('licencia_conducir_adjunto', $event)" accept=".pdf,.jpg,.jpeg,.png"
+                  class="file-input" />
                 <div class="file-input-custom">
-                  <span class="file-name">{{ getFileName('licencia_conducir_adjunto') || 'Ningún archivo seleccionado' }}</span>
+                  <span class="file-name">{{ getFileName('licencia_conducir_adjunto') || 'Ningún archivo seleccionado'
+                    }}</span>
                   <button type="button" class="browse-button">Examinar</button>
                 </div>
               </div>
@@ -262,22 +164,14 @@
             <h2>Información Médica</h2>
             <div class="form-group">
               <label for="alergias_condiciones">Alergias/Condiciones</label>
-              <textarea
-                id="alergias_condiciones"
-                v-model="form.alergias_condiciones"
-                class="form-input"
-                rows="3"
-              ></textarea>
+              <textarea id="alergias_condiciones" v-model="form.alergias_condiciones" class="form-input"
+                rows="3"></textarea>
             </div>
 
             <div class="form-group">
               <label for="necesidades_especiales">Necesidades Especiales</label>
-              <textarea
-                id="necesidades_especiales"
-                v-model="form.necesidades_especiales"
-                class="form-input"
-                rows="3"
-              ></textarea>
+              <textarea id="necesidades_especiales" v-model="form.necesidades_especiales" class="form-input"
+                rows="3"></textarea>
             </div>
           </div>
 
@@ -286,36 +180,20 @@
             <h2>Contacto de Emergencia</h2>
             <div class="form-group">
               <label for="nombre_contacto_emergencia" class="required">Nombre de Contacto</label>
-              <input
-                type="text"
-                id="nombre_contacto_emergencia"
-                v-model="form.nombre_contacto_emergencia"
-                required
-                class="form-input"
-              />
+              <input type="text" id="nombre_contacto_emergencia" v-model="form.nombre_contacto_emergencia" required
+                class="form-input" />
             </div>
 
             <div class="form-group">
               <label for="relacion_contacto_emergencia" class="required">Relación con el Contacto</label>
-              <input
-                type="text"
-                id="relacion_contacto_emergencia"
-                v-model="form.relacion_contacto_emergencia"
-                required
-                class="form-input"
-              />
+              <input type="text" id="relacion_contacto_emergencia" v-model="form.relacion_contacto_emergencia" required
+                class="form-input" />
             </div>
 
             <div class="form-group">
               <label for="telefono_contacto_emergencia" class="required">Teléfono del Contacto</label>
-              <input
-                type="tel"
-                id="telefono_contacto_emergencia"
-                v-model="form.telefono_contacto_emergencia"
-                @input="filterPhoneNumber('telefono_contacto_emergencia')"
-                required
-                class="form-input"
-              />
+              <input type="tel" id="telefono_contacto_emergencia" v-model="form.telefono_contacto_emergencia"
+                @input="filterPhoneNumber('telefono_contacto_emergencia')" required class="form-input" />
             </div>
           </div>
 
@@ -324,24 +202,15 @@
             <h2>Consentimientos</h2>
             <div class="checkbox-group">
               <label class="checkbox-item">
-                <input
-                  type="checkbox"
-                  v-model="consentimientos.consentimiento_participacion"
-                />
+                <input type="checkbox" v-model="consentimientos.consentimiento_participacion" />
                 <span>Consentimiento de Participación</span>
               </label>
               <label class="checkbox-item">
-                <input
-                  type="checkbox"
-                  v-model="consentimientos.autorizacion_imagen"
-                />
+                <input type="checkbox" v-model="consentimientos.autorizacion_imagen" />
                 <span>Autorización de Imagen</span>
               </label>
               <label class="checkbox-item">
-                <input
-                  type="checkbox"
-                  v-model="consentimientos.consentimiento_tratamiento_datos"
-                />
+                <input type="checkbox" v-model="consentimientos.consentimiento_tratamiento_datos" />
                 <span>Consentimiento para Tratamiento de Datos</span>
               </label>
             </div>
@@ -356,14 +225,8 @@
             <div class="form-group">
               <label for="firma" class="required">Firma Digital</label>
               <div class="file-input-wrapper">
-                <input
-                  type="file"
-                  id="firma"
-                  @change="handleFileUpload('firma', $event)"
-                  accept=".jpg,.jpeg,.png"
-                  required
-                  class="file-input"
-                />
+                <input type="file" id="firma" @change="handleFileUpload('firma', $event)" accept=".jpg,.jpeg,.png"
+                  required class="file-input" />
                 <div class="file-input-custom">
                   <span class="file-name">{{ getFileName('firma') || 'Ningún archivo seleccionado' }}</span>
                   <button type="button" class="browse-button">Examinar</button>
@@ -372,11 +235,7 @@
             </div>
           </div>
 
-          <button
-            type="submit"
-            :disabled="!isFormValid"
-            :class="{ 'button-disabled': !isFormValid }"
-          >
+          <button type="submit" :disabled="!isFormValid" :class="{ 'button-disabled': !isFormValid }">
             Enviar Solicitud
           </button>
         </form>
@@ -389,6 +248,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { supabase } from '@/supabase'
 import Swal from 'sweetalert2'
+import emailjs from 'emailjs-com';
 
 export default {
   name: 'RequestTraining',
@@ -537,91 +397,125 @@ export default {
     }
 
     const submitForm = async () => {
-  try {
-    // Primero validamos el DNI y el correo electrónico antes de proceder
-    const isValidDni = await validateDni()
-    const isValidEmail = await validateEmail()
+      try {
+        // Primero validamos el DNI y el correo electrónico antes de proceder
+        const isValidDni = await validateDni();
+        const isValidEmail = await validateEmail();
 
-    if (!isValidDni || !isValidEmail) {
-      return
-    }
+        if (!isValidDni || !isValidEmail) {
+          return;
+        }
 
-    if (!isFormValid.value) {
-      Swal.fire({
-        icon: 'error',
-        title: 'Error',
-        text: 'Por favor, corrija los errores del formulario'
-      })
-      return
-    }
+        if (!isFormValid.value) {
+          Swal.fire({
+            icon: 'error',
+            title: 'Error',
+            text: 'Por favor, corrija los errores del formulario'
+          });
+          return;
+        }
 
-    const formData = {
-      ...form.value,
-      ...consentimientos.value
-    }
+        const formData = {
+          ...form.value,
+          ...consentimientos.value
+        };
 
-    const { error } = await supabase
-      .from('solicitud_capacitacion')
-      .insert([formData])
+        // Insertar la solicitud de capacitación
+        const { error } = await supabase
+          .from('solicitud_capacitacion')
+          .insert([formData]);
 
-    if (error) throw error
+        if (error) throw error;
 
-    Swal.fire({
-      icon: 'success',
-      title: 'Éxito',
-      text: 'Solicitud enviada correctamente'
-    })
+        Swal.fire({
+          icon: 'success',
+          title: 'Éxito',
+          text: 'Solicitud enviada correctamente'
+        });
 
-    // Reset form
-    form.value = {
-      nombre_completo: '',
-      nro_telefonico: '',
-      dni: '',
-      fecha_nacimiento: '',
-      direccion: '',
-      telefono_contacto: '',
-      correo_electronico: '',
-      nacionalidad: '',
-      ocupacion_actual: '',
-      nombre_empresa: '',
-      cargo_actual: '',
-      experiencia_maquinaria: '',
-      nombre_contacto_emergencia: '',
-      relacion_contacto_emergencia: '',
-      telefono_contacto_emergencia: '',
-      fk_curso: null,
-      fecha_inicio_preferida: '',
-      turno_preferido: '',
-      dni_adjunto: null,
-      certificado_medico_adjunto: null,
-      licencia_conducir_adjunto: null,
-      alergias_condiciones: '',
-      necesidades_especiales: '',
-      firma: null
-    }
-    
-    fileNames.value = {
-      dni_adjunto: '',
-      certificado_medico_adjunto: '',
-      licencia_conducir_adjunto: '',
-      firma: ''
-    }
+        // Enviar el correo de confirmación
+        emailjs.init('8GJwYc75XE3Qp05j_');  // Aquí pones tu user ID de EmailJS
+        const templateParams = {
+          to_email: form.value.correo_electronico,
+          subject: 'Confirmación de Solicitud de Capacitación',
+          message: `Hola ${form.value.nombre_completo},\n\nTu solicitud de capacitación ha sido recibida con éxito.\n\nDetalles de la solicitud:\n- Curso: ${form.value.fk_curso}\n- Fecha preferida de inicio: ${form.value.fecha_inicio_preferida}\n- Turno preferido: ${form.value.turno_preferido}\n\n¡Gracias por tu interés!`
+        };
 
-    consentimientos.value = {
-      consentimiento_participacion: false,
-      autorizacion_imagen: false,
-      consentimiento_tratamiento_datos: false
-    }
+        const { response, status } = await emailjs.send(
+          'service_5u4cv8t',    // Service ID
+          'template_tryi5ab',   // Template ID
+          templateParams
+        );
 
-  } catch (error) {
-    console.error('Error al enviar formulario:', error)
-    Swal.fire({
-      icon: 'error',
-      title: 'Error',
-      text: 'Error al enviar la solicitud'
-    })
-  }
-}
+        if (status === 200) {
+          console.log('Correo enviado exitosamente:', response);
+          Swal.fire({
+            icon: 'success',
+            title: 'Éxito',
+            text: 'Correo de confirmación enviado correctamente'
+          });
+        } else {
+          console.error('Error en el envío del correo:', response);
+          Swal.fire({
+            icon: 'error',
+            title: 'Error',
+            text: 'Error al enviar el correo de confirmación'
+          });
+        }
+
+
+        // Resetear formulario
+        form.value = {
+          nombre_completo: '',
+          nro_telefonico: '',
+          dni: '',
+          fecha_nacimiento: '',
+          direccion: '',
+          telefono_contacto: '',
+          correo_electronico: '',
+          nacionalidad: '',
+          ocupacion_actual: '',
+          nombre_empresa: '',
+          cargo_actual: '',
+          experiencia_maquinaria: '',
+          nombre_contacto_emergencia: '',
+          relacion_contacto_emergencia: '',
+          telefono_contacto_emergencia: '',
+          fk_curso: null,
+          fecha_inicio_preferida: '',
+          turno_preferido: '',
+          dni_adjunto: null,
+          certificado_medico_adjunto: null,
+          licencia_conducir_adjunto: null,
+          alergias_condiciones: '',
+          necesidades_especiales: '',
+          firma: null
+        };
+
+        fileNames.value = {
+          dni_adjunto: '',
+          certificado_medico_adjunto: '',
+          licencia_conducir_adjunto: '',
+          firma: ''
+        };
+
+        consentimientos.value = {
+          consentimiento_participacion: false,
+          autorizacion_imagen: false,
+          consentimiento_tratamiento_datos: false
+        };
+
+      } catch (error) {
+        console.error('Error al enviar formulario:', error);
+        Swal.fire({
+          icon: 'error',
+          title: 'Error',
+          text: 'Error al enviar la solicitud'
+        });
+      }
+    };
+
+
 
     onMounted(loadData)
 
