@@ -9,7 +9,6 @@
             <th>Usuario</th>
             <th>Contraseña</th>
             <th>Documento</th>
-            <th>Opciones</th>
           </tr>
         </thead>
         <tbody>
@@ -134,9 +133,14 @@ export default {
           return;
         }
 
-        const credencial = this.credenciales.find(
+        let credencial = this.credenciales.find(
           (cred) => cred.FK_Operador === operador.Pk_Alumno
         );
+
+        if (!credencial) {
+          // Si no existen credenciales, se crean nuevas
+          credencial = await this.crearCredenciales(operador);
+        }
 
         // Construir el mensaje de correo
         const saludo = `Hola ${solicitud.nombre_completo},\n\n`;
@@ -146,7 +150,7 @@ export default {
         if (solicitud.estado_solicitud === "Aceptada") {
           mensaje = `${saludo}¡Estamos emocionados de informarte que tu solicitud de capacitación ha sido aceptada con éxito!\n\n${detalleSolicitud}\n\n¡Gracias por confiar en nosotros!`;
 
-          // Si tiene credenciales, incluirlas en el mensaje
+          // Incluir credenciales en el mensaje
           if (credencial) {
             mensaje += `\n\nTus credenciales para acceder al curso son:\nUsuario: ${credencial.usuario}\nContraseña: ${credencial.contrasena}`;
           }
@@ -175,6 +179,7 @@ export default {
             title: "Operación exitosa",
             text: `Solicitud ${solicitud.estado_solicitud.toLowerCase()} y correo enviado correctamente.`,
           });
+          this.actualizarSolicitudesConCredenciales();
         } else {
           console.error("Error en el envío del correo:", response);
           Swal.fire({
@@ -190,6 +195,67 @@ export default {
           title: "Error",
           text: "Ocurrió un error al enviar el correo.",
         });
+      }
+    },
+
+    // Función para crear credenciales si no existen
+    async crearCredenciales(operador) {
+      try {
+        // Obtener el autor desde el localStorage (suponiendo que 'use' almacena el id del usuario)
+        const autor = JSON.parse(localStorage.getItem('user'));
+        if (!autor) {
+          throw new Error("No se ha encontrado el autor en el localStorage.");
+        }
+        console.log(autor.id);
+
+        // Obtener los datos del operador desde Supabase
+        const { data, error } = await supabase
+          .from("Operador")
+          .select("correo_electronico, Pk_Alumno")
+          .eq("correo_electronico", operador.correo_electronico)  // Filtrar por correo_electronico
+          .single();  // Suponiendo que debería haber solo un operador con ese correo
+
+        if (error) {
+          console.error("Error al obtener datos del operador:", error.message);  // Detalle del error
+          throw new Error("Error al obtener datos del operador: " + error.message);
+        }
+
+        // Verificar que obtuviste los datos correctos del operador
+        if (!data) {
+          throw new Error("Operador no encontrado en la base de datos.");
+        }
+        console.log(autor);
+
+        // Generar un usuario y contraseña por defecto
+        const usuario = data.correo_electronico.split('@')[0];  // Usamos el correo como base para el usuario
+        const contrasena = Math.random().toString(36).slice(-8); // Contraseña aleatoria de 8 caracteres
+
+        // Crear las credenciales
+        const nuevaCredencial = {
+          FK_Operador: data.Pk_Alumno,  // Asignamos el Pk_Alumno del operador encontrado
+          usuario: usuario,
+          contrasena: contrasena,
+          autor: autor.id,  // El id del autor obtenido desde el localStorage
+          ultimo_autor: autor.id,  // El último autor también es el mismo por ahora
+          fecha_creacion: new Date(),
+        };
+
+        // Guardar las credenciales en la base de datos usando Supabase
+        const { data: credencialGuardada, error: saveError } = await supabase
+          .from("credenciales_alumnos")  // Suponiendo que la tabla es "Credenciales"
+          .insert([nuevaCredencial]);
+
+        if (saveError) {
+          console.error("Error al guardar las credenciales:", saveError.message);  // Detalle del error
+          throw new Error("Error al guardar las credenciales: " + saveError);
+        }
+
+        console.log('Credenciales guardadas:', credencialGuardada);
+        return credencialGuardada;  // Devuelve las credenciales guardadas
+
+      } catch (error) {
+        console.error("Error al crear las credenciales:", error.message);
+        throw new Error("No se pudieron crear las credenciales.");
       }
     },
   },
