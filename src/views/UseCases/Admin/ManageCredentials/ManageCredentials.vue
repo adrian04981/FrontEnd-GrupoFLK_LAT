@@ -15,16 +15,12 @@
         <tbody>
           <tr v-for="solicitud in solicitudes" :key="solicitud.id">
             <td>{{ solicitud.nombre_completo || "Nulo" }}</td>
-            <td>{{ solicitud.usuario || "Nulo" }}</td>
-            <td>{{ solicitud.contrasena || "Nulo" }}</td>
-            <td>{{ obtenerDocumento(solicitud.FK_Operador) || "Nulo" }}</td>
+            <td>{{ solicitud.usuario }}</td>
+            <td>{{ solicitud.contrasena }}</td>
             <td>
               <button @click="enviarCorreo(solicitud)" class="btn-generar">
                 Enviar Correo
               </button>
-              <span v-if="!existeOperador(solicitud.usuario)">
-                (Generar usuario y contraseña)
-              </span>
             </td>
           </tr>
         </tbody>
@@ -33,20 +29,26 @@
   </div>
 </template>
 
+
 <script>
 import { supabase } from "@/supabase.js";
+import emailjs from 'emailjs-com';
+import Swal from 'sweetalert2'
 
 export default {
   name: "ManageRequests",
   data() {
     return {
       solicitudes: [],
-      operadores: [], // Aquí almacenamos los operadores
+      operadores: [],
+      credenciales: [],
     };
   },
   async mounted() {
     await this.fetchSolicitudes();
-    await this.fetchOperadores(); // Traemos los operadores al cargar el componente
+    await this.fetchOperadores();
+    await this.fetchCredenciales();
+    this.actualizarSolicitudesConCredenciales();
   },
   methods: {
     async fetchSolicitudes() {
@@ -62,120 +64,137 @@ export default {
         this.solicitudes = data;
       } catch (error) {
         console.error("Error al cargar las solicitudes:", error.message);
-        alert("Ocurrió un error al cargar las solicitudes.");
       }
     },
     async fetchOperadores() {
       try {
-        // Traemos los operadores que tienen correo
         const { data, error } = await supabase
           .from("Operador")
           .select("correo_electronico, Pk_Alumno");
 
         if (error) throw error;
 
-        console.log("o cargados:", data);
+        console.log("Operadores cargados:", data);
         this.operadores = data;
       } catch (error) {
         console.error("Error al cargar operadores:", error.message);
       }
     },
-    obtenerDocumento(fkOperador) {
-      const operador = this.operadores.find(
-        (op) => op.Pk_Alumno === fkOperador
-      );
-      return operador ? operador.nro_documento : "Nulo";
+    async fetchCredenciales() {
+      try {
+        const { data, error } = await supabase
+          .from("credenciales_alumnos")
+          .select("*");
+
+        if (error) throw error;
+
+        console.log("Credenciales cargadas:", data);
+        this.credenciales = data;
+      } catch (error) {
+        console.error("Error al cargar las credenciales:", error.message);
+      }
     },
-    existeOperador(correo) {
-      return this.operadores.some((op) => op.correo_electronico === correo);
+    actualizarSolicitudesConCredenciales() {
+      // Agregar las credenciales correspondientes a cada solicitud
+      this.solicitudes = this.solicitudes.map((solicitud) => {
+        const operador = this.operadores.find(
+          (op) => op.correo_electronico === solicitud.correo_electronico
+        );
+
+        if (!operador) {
+          return { ...solicitud, usuario: "Nulo", contrasena: "Nulo" };
+        }
+
+        const credencial = this.credenciales.find(
+          (cred) => cred.FK_Operador === operador.Pk_Alumno
+        );
+
+        return {
+          ...solicitud,
+          usuario: credencial?.usuario || "Nulo",
+          contrasena: credencial?.contrasena || "Nulo",
+        };
+      });
+
+      console.log("Solicitudes actualizadas con credenciales:", this.solicitudes);
     },
+
     async enviarCorreo(solicitud) {
       try {
-        // Buscar el operador que coincide con el correo de la solicitud
-        const { data: operadores, error: operadorError } = await supabase
-          .from("Operador")
-          .select("*")
-          .eq("correo_electronico", solicitud.correo_electronico)
-          .single(); // Usar .single() para obtener un solo registro
+        const operador = this.operadores.find(
+          (op) => op.correo_electronico === solicitud.correo_electronico
+        );
 
-        if (operadorError) throw operadorError;
-
-        if (!operadores) {
-          alert("No se encontró un operador con este correo.");
+        if (!operador) {
+          Swal.fire({
+            icon: "error",
+            title: "Error",
+            text: "Operador no encontrado.",
+          });
           return;
         }
 
-        const { data: credenciales, error: credError } = await supabase
-          .from("credenciales_alumnos")
-          .select("*")
-          .eq("Pk_Alumno", operadores.Pk_Alumno);
+        const credencial = this.credenciales.find(
+          (cred) => cred.FK_Operador === operador.Pk_Alumno
+        );
 
-        if (credError) throw credError;
+        // Construir el mensaje de correo
+        const saludo = `Hola ${solicitud.nombre_completo},\n\n`;
+        const detalleSolicitud = `Detalles de la solicitud:\n\n\n`;
 
-        if (credenciales.length > 0) {
-          alert("Las credenciales ya existen para este operador.");
-          return;
+        let mensaje;
+        if (solicitud.estado_solicitud === "Aceptada") {
+          mensaje = `${saludo}¡Estamos emocionados de informarte que tu solicitud de capacitación ha sido aceptada con éxito!\n\n${detalleSolicitud}\n\n¡Gracias por confiar en nosotros!`;
+
+          // Si tiene credenciales, incluirlas en el mensaje
+          if (credencial) {
+            mensaje += `\n\nTus credenciales para acceder al curso son:\nUsuario: ${credencial.usuario}\nContraseña: ${credencial.contrasena}`;
+          }
+        } else {
+          mensaje = `${saludo}Lamentamos informarte que tu solicitud de capacitación ha sido rechazada.\n\nMotivo del rechazo:\n"${solicitud.motivo_rechazo}"\n\nSi tienes alguna pregunta, no dudes en contactarnos.\n\nGracias por tu comprensión.`;
         }
 
-        // Generar una nueva contraseña
-        const nuevaContraseña = this.generarContraseña();
+        const templateParams = {
+          to_email: solicitud.correo_electronico,
+          subject: solicitud.estado_solicitud === "Aceptada" ? "¡Solicitud Aceptada!" : "Solicitud Rechazada",
+          message: mensaje,
+        };
 
+        // Enviar el correo usando EmailJS
+        emailjs.init("8GJwYc75XE3Qp05j_");
+        const { response, status } = await emailjs.send(
+          "service_5u4cv8t", // Service ID
+          "template_tryi5ab", // Template ID
+          templateParams
+        );
 
-        let id = operadores.Pk_Alumno;
-        // Crear nuevas credenciales
-        const { data: nuevasCredenciales, error: insertError } = await supabase
-          .from("credenciales_alumnos")
-          .insert([
-            {
-              FK_Operador: id,
-              usuario: solicitud.usuario,
-              contrasena: nuevaContraseña,
-            },
-          ]);
-
-        if (insertError) throw insertError;
-
-
-        // Enviar correo con las nuevas credenciales
-        const { error: emailError } = await supabase.rpc("schema_name.send_email", {
-          email: solicitud.usuario,
-          subject: "Solicitud Aceptada - Credenciales",
-          message: `
-        <h1>Solicitud Aceptada</h1>
-        <p>Estimado usuario, tu solicitud ha sido aceptada:</p>
-        <p><strong>Usuario:</strong> ${solicitud.usuario}</p>
-        <p><strong>Contraseña:</strong> ${nuevaContraseña}</p>
-        <p>Por favor, utiliza estas credenciales para acceder a tu capacitación.</p>
-      `,
-        });
-
-        if (emailError) throw emailError;
-
-        alert("Credenciales generadas y correo enviado correctamente.");
-
+        if (status === 200) {
+          console.log("Correo enviado exitosamente:", response);
+          Swal.fire({
+            icon: "success",
+            title: "Operación exitosa",
+            text: `Solicitud ${solicitud.estado_solicitud.toLowerCase()} y correo enviado correctamente.`,
+          });
+        } else {
+          console.error("Error en el envío del correo:", response);
+          Swal.fire({
+            icon: "error",
+            title: "Error",
+            text: "Error al enviar el correo de confirmación.",
+          });
+        }
       } catch (error) {
         console.error("Error al procesar la solicitud:", error.message);
-        alert("Ocurrió un error al procesar la solicitud.");
+        Swal.fire({
+          icon: "error",
+          title: "Error",
+          text: "Ocurrió un error al enviar el correo.",
+        });
       }
-    },
-
-    // Función para generar contraseña (debes implementarla)
-    generarContraseña() {
-      // Implementa aquí la lógica para generar una contraseña segura
-      // Por ejemplo:
-      const length = 10;
-      const charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()";
-      let password = "";
-      for (let i = 0, n = charset.length; i < length; ++i) {
-        password += charset.charAt(Math.floor(Math.random() * n));
-      }
-      return password;
     },
   },
 };
 </script>
-
-
 
 <style scoped>
 .credentials-layout {
