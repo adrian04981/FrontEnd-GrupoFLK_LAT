@@ -311,20 +311,34 @@ export default {
 
         if (error) throw error;
 
-        // Buscar si el operador ya existe por correo electrónico
+        // Buscar si el operador ya existe por su código (Pk_Alumno)
         const { data: operadores, error: operadoresError } = await supabase
           .from("Operador")
           .select("Pk_Alumno")
-          .eq("correo_electronico", solicitud.correo_electronico);
+          .eq("correo_electronico", solicitud.correo_electronico); // Aún se utiliza el correo para identificar, pero obtendremos el Pk_Alumno
 
         if (operadoresError) throw operadoresError;
 
         // Si no existe, crear el operador
-        if (operadores.length === 0) {
+        let operadorId = operadores.length > 0 ? operadores[0].Pk_Alumno : null;
+        if (!operadorId) {
           const operadorCreado = await crearOperador(solicitud);
           if (!operadorCreado) {
             throw new Error("No se pudo crear el operador.");
           }
+          // Obtener el ID del operador creado
+          const { data: nuevoOperador } = await supabase
+            .from("Operador")
+            .select("Pk_Alumno")
+            .eq("correo_electronico", solicitud.correo_electronico)
+            .single();
+          operadorId = nuevoOperador ? nuevoOperador.Pk_Alumno : null;
+        }
+
+        // Crear la matrícula con el código del operador (Pk_Alumno)
+        const matriculaCreada = await crearMatricula(solicitud, operadorId);
+        if (!matriculaCreada) {
+          throw new Error("No se pudo crear la matrícula.");
         }
 
         // Construir el mensaje de correo
@@ -379,33 +393,29 @@ export default {
       }
     }
 
-    async function crearOperador(solicitud) {
+    // Función para crear la matrícula con el código del operador (Pk_Alumno)
+    async function crearMatricula(solicitud, operadorId) {
       try {
         const { error } = await supabase
-          .from("Operador")
-          .insert([
-            {
-              nombre: solicitud.nombre_completo,
-              apellidos: solicitud.nombre_completo, // Suponiendo que la contraseña es el usuario
-              fecha_nacimiento: solicitud.fecha_nacimiento,
-              nro_telefonico: solicitud.nro_telefonico,
-              correo_electronico: solicitud.correo_electronico, // Cambié a "usuario" ya que es el correo en la solicitud
-              dni: solicitud.dni, // Usamos la contraseña como DNI (ajustar según lo necesario)
-              Estado: true, // El estado del operador
-            },
-          ]);
+          .from("matriculas")
+          .insert([{
+            fk_operador: operadorId, // Usar el id del operador (Pk_Alumno)
+            fk_curso: solicitud.fk_curso, // Asignar el curso desde la solicitud
+            fecha_matricula: new Date(), // Fecha actual de la matrícula
+            fk_sesion: 1,
+            estado: true
+          }]);
 
         if (error) throw error;
 
-        console.log("Operador creado con éxito.");
+        console.log("Matrícula creada con éxito.");
         return true;
       } catch (error) {
-        console.error("Error al crear operador:", error.message);
-        alert("Ocurrió un error al crear el operador.");
+        console.error("Error al crear la matrícula:", error.message);
+        alert("Ocurrió un error al crear la matrícula.");
         return false;
       }
     }
-
     const confirmarRechazo = async () => {
       await gestionarSolicitud(solicitudActual.value, "rechazado");
       cerrarModalRechazo();
